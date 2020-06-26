@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   cv_bridge
   image_transport
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,11 +58,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  CalibrateBoxItem.srv
+  GeneratePickpoint.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -71,10 +72,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   sensor_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -208,10 +210,23 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
+######### IMAGE CONVERTER
 add_executable(image_converter src/image_converter.cpp)
 target_link_libraries(image_converter ${catkin_LIBRARIES})
 # add_dependencies(image_converter green_pick_cpp)
-
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 target_link_libraries( image_converter ${OpenCV_LIBS} )
+
+
+############ PERCEPTION PIPELINE
+add_executable(perception_pipeline src/perception_pipeline.cpp)
+target_link_libraries(perception_pipeline ${catkin_LIBRARIES})
+# add_dependencies(perception_pipeline green_pick_cpp)
+target_link_libraries( perception_pipeline ${OpenCV_LIBS} )
+
+############ ITEM CALIBRATION
+add_executable(calibrate_box_item src/calibrate_box_item.cpp)
+target_link_libraries(calibrate_box_item ${catkin_LIBRARIES})
+# add_dependencies(calibrate_box_item green_pick_cpp)
+target_link_libraries( calibrate_box_item ${OpenCV_LIBS} )
