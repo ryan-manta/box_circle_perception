@@ -1,3 +1,4 @@
+float32[3] pick_coordinates_array
 string item_name
 ---
 float32[3] pick_coordinates

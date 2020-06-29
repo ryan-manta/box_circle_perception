@@ -13,7 +13,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui.hpp>
 #include "ros/ros.h"
-#include "green_pick/CalibrateBoxItem.h"
+
 
 static const std::string OPENCV_WINDOW = "Image window";
 
@@ -36,13 +36,6 @@ public:
         cv::namedWindow(OPENCV_WINDOW);
         cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::onMouse, this);
         cv::createButton("CALIBRATE ITEM", &Calibrator::calibrate_button_callback, this, CV_PUSH_BUTTON,1);
-    }
-
-    bool calibrate_switch(green_pick::CalibrateBoxItem::Request &req,
-                            green_pick::CalibrateBoxItem::Response &res) {
-        // Switch calibration on
-        do_calibration = true;
-        return true;
     }
 
     static void calibrate_button_callback(int state, void* ptr) {
@@ -121,11 +114,6 @@ int main(int argc, char **argv) {
     ros::NodeHandle n_converter;
     Calibrator calibrator(n_converter);
 
-    ros::init(argc, argv, "calibrate_box_item_server");
-    ros::NodeHandle n_calibrator;
-    //Calibrator* calibrator_ptr = &calibrator;
-    ros::ServiceServer service = n_calibrator.advertiseService("calibrate_box_item", &Calibrator::calibrate_switch, &calibrator);
-    ROS_INFO("Ready to calibrate a new item.");
     ros::spin();
     return 0;
 }

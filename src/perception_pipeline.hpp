@@ -13,9 +13,13 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui/highgui.hpp>
+#include "detection_algos/hough_circle_detector.hpp"
+#include "green_pick/GeneratePickpoint.h"
 
-#include "state_machine.hpp"
-#include <iostream>
+#include <string>
+
+#define BOX 0
+#define CIRCLE 1
 
 class PerceptionPipeline {
 private:
@@ -24,14 +28,19 @@ private:
     image_transport::Subscriber image_subscriber;
     image_transport::Publisher image_publisher;
 
-    // Internal reference to state machine that's controlled by external script
-    StateMachine& state_machine;
+    cv_bridge::CvImagePtr cv_ptr;
+
+    // Construct image transporter after ros node is initialized
 
 public:
-    PerceptionPipeline(StateMachine& state_machine);
+    PerceptionPipeline();
   
     // Callback function for the image transport ROS node
     void perception_callback(const sensor_msgs::ImageConstPtr& msg);
+
+    // Set next item to be picked, state machine controls timing of when to actually generate a pickpoint
+    bool generate_pickpoint(green_pick::GeneratePickpoint::Request &req,
+                        green_pick::GeneratePickpoint::Response &res);
 
     ~PerceptionPipeline();
 };
@@ -39,8 +48,13 @@ public:
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "perception_pipeline");
-    StateMachine perception_state_machine = StateMachine();
-    PerceptionPipeline greenpick_perception_pipeline(perception_state_machine);
+    PerceptionPipeline greenpick_perception_pipeline;
+
+    ros::init(argc, argv, "pickpoint_generator_server");
+    ros::NodeHandle n;
+    ros::ServiceServer service = n.advertiseService("generate_pickpoint", &PerceptionPipeline::generate_pickpoint, &greenpick_perception_pipeline);
+    ROS_INFO("Pick service ready for calling.");
+    
     ros::spin();
     return 0;
 }

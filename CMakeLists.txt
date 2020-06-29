@@ -60,7 +60,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  CalibrateBoxItem.srv
   GeneratePickpoint.srv
 )
 
@@ -210,14 +209,9 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-######### IMAGE CONVERTER
-add_executable(image_converter src/image_converter.cpp)
-target_link_libraries(image_converter ${catkin_LIBRARIES})
-# add_dependencies(image_converter green_pick_cpp)
+############ OPENCV
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
-target_link_libraries( image_converter ${OpenCV_LIBS} )
-
 
 ############ PERCEPTION PIPELINE
 add_executable(perception_pipeline src/perception_pipeline.cpp)
