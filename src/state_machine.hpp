@@ -7,9 +7,8 @@
 */
 
 #define STARTUP 0
-#define CALIBRATE_NEW_ITEM 1
-#define PACKING_ITEM 2
-#define READY_FOR_PICKPOINT 3
+#define PACKING_ITEM 1
+#define READY_FOR_PICKPOINT 2
 
 
 class StateMachine {

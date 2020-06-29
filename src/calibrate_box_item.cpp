@@ -34,6 +34,8 @@ public:
 
         // OpenCV window
         cv::namedWindow(OPENCV_WINDOW);
+        cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::onMouse, this);
+        cv::createButton("CALIBRATE ITEM", &Calibrator::calibrate_button_callback, this, CV_PUSH_BUTTON,1);
     }
 
     bool calibrate_switch(green_pick::CalibrateBoxItem::Request &req,
@@ -41,6 +43,24 @@ public:
         // Switch calibration on
         do_calibration = true;
         return true;
+    }
+
+    static void calibrate_button_callback(int state, void* ptr) {
+        // Set do_calibration to true
+        Calibrator* this_c = (Calibrator*) ptr;
+        this_c->do_calibration = true;
+        return;
+    }
+
+    static void onMouse(int event, int x, int y, int, void* ptr) {
+        if(event != cv::EVENT_LBUTTONDOWN) {
+            return;
+        }   
+
+        // Set do_calibration to true
+        Calibrator* this_c = (Calibrator*) ptr;
+        this_c->do_calibration = true;
+        return;
     }
 
     void calibrate_box_item(cv::Mat& source_image) {
@@ -78,6 +98,10 @@ public:
             return;
         }
 
+        // Show current camera view
+        cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+        cv::waitKey(3);
+
         // Do calibration
         if (this->do_calibration) {
             calibrate_box_item(cv_ptr->image);
@@ -90,7 +114,7 @@ public:
     }
 };
 
-//void do_nothing(){};
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "calibrator_image_converter");

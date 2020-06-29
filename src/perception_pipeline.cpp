@@ -32,8 +32,6 @@ void PerceptionPipeline::perception_callback(const sensor_msgs::ImageConstPtr& m
     int state = this->state_machine.get_state();
     if (state == READY_FOR_PICKPOINT) {
         // pickpoint_generation
-    } else if (state == CALIBRATE_NEW_ITEM) {
-        // item calibration
     } else {
         // else do nothing
     }
