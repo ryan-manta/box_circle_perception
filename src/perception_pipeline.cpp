@@ -9,8 +9,6 @@ PerceptionPipeline::PerceptionPipeline()
     image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
     &PerceptionPipeline::perception_callback, this);
     image_publisher = image_transporter.advertise("/perception_pipeline/output_video", 1);
-    //cv::namedWindow(OPENCV_WINDOW);
-
 }
 
 void PerceptionPipeline::perception_callback(const sensor_msgs::ImageConstPtr& msg) {
@@ -29,7 +27,7 @@ void PerceptionPipeline::perception_callback(const sensor_msgs::ImageConstPtr& m
     }
 
     // Output modified video stream
-    //image_publisher.publish(cv_ptr->toImageMsg());
+    // image_publisher.publish(cv_ptr->toImageMsg());
 }
 
 bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Request &req,
@@ -41,19 +39,30 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
 
     // Check our item set for the item we want to pick
     for (int i = 0; i < items.size(); i++) {
-        if (req.item_name.compare(items[i])) {
+        if (req.item_name.compare(items[i]) == 0) {
 
             // If we hit item, perform its associated detection method
             if (box_or_circle[i] == BOX) {
                 // SURF
-            } else if (box_or_circle[i] == CIRCLE) {
-                // Hough circle detection
-                detect_circles(&this->cv_ptr->image);
+                int hessian_threshold = 400;
+                detect_boxes(this->cv_ptr->image, hessian_threshold);
                 
                 for (int i = 0; i < 3; i++) {
                     res.pick_coordinates[i] = 0;
                 }
 
+                image_publisher.publish(cv_ptr->toImageMsg());
+                return true;
+
+            } else if (box_or_circle[i] == CIRCLE) {
+                // Hough circle detection
+                detect_circles(this->cv_ptr->image);
+                
+                for (int i = 0; i < 3; i++) {
+                    res.pick_coordinates[i] = 0;
+                }
+
+                image_publisher.publish(cv_ptr->toImageMsg());
                 return true;
                 
             } else {
@@ -66,8 +75,4 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
     
     image_publisher.publish(cv_ptr->toImageMsg());
     return true;
-}
-
-PerceptionPipeline::~PerceptionPipeline() {
-    //cv::destroyWindow(OPENCV_WINDOW);
 }

@@ -14,6 +14,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui/highgui.hpp>
 #include "detection_algos/hough_circle_detector.hpp"
+#include "detection_algos/surf_box_detector.hpp"
 #include "green_pick/GeneratePickpoint.h"
 
 #include <string>
@@ -38,11 +39,10 @@ public:
     // Callback function for the image transport ROS node
     void perception_callback(const sensor_msgs::ImageConstPtr& msg);
 
-    // Set next item to be picked, state machine controls timing of when to actually generate a pickpoint
+    // Generate pickpoint service callback
     bool generate_pickpoint(green_pick::GeneratePickpoint::Request &req,
                         green_pick::GeneratePickpoint::Response &res);
-
-    ~PerceptionPipeline();
+                        
 };
 
 int main(int argc, char** argv)

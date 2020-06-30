@@ -5,10 +5,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-void detect_circles(cv::Mat* source_img_ptr) {
+void detect_circles(cv::Mat& source_img_ptr) {
     // Transfer from rgb to grayscale color space
     cv::Mat gray_img;
-    cv::cvtColor(*source_img_ptr, gray_img, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(source_img_ptr, gray_img, cv::COLOR_BGR2GRAY);
     
     // Blur image to avoid false circles
     cv::GaussianBlur(gray_img, gray_img, cv::Size(9, 9), 2, 2 );
@@ -35,10 +35,10 @@ void detect_circles(cv::Mat* source_img_ptr) {
         cv::Point circle_center = cv::Point(circle[0], circle[1]);
 
         // Draw center
-        cv::circle(*source_img_ptr, circle_center, 1, cv::Scalar(0,100,100), 3, cv::LINE_AA);
+        cv::circle(source_img_ptr, circle_center, 1, cv::Scalar(0,100,100), 3, cv::LINE_AA);
 
         // Draw outline
         int radius = circle[2];
-        cv::circle(*source_img_ptr, circle_center, radius, cv::Scalar(255,0,255), 3, cv::LINE_AA);
+        cv::circle(source_img_ptr, circle_center, radius, cv::Scalar(255,0,255), 3, cv::LINE_AA);
     }
 }

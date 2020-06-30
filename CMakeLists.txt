@@ -209,18 +209,24 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-############ OPENCV
+############ OPENCV ############
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
-############ PERCEPTION PIPELINE
+############ PERCEPTION PIPELINE ############
 add_executable(perception_pipeline src/perception_pipeline.cpp)
 target_link_libraries(perception_pipeline ${catkin_LIBRARIES})
 # add_dependencies(perception_pipeline green_pick_cpp)
 target_link_libraries( perception_pipeline ${OpenCV_LIBS} )
 
-############ ITEM CALIBRATION
+############ ITEM CALIBRATION ############
 add_executable(calibrate_box_item src/calibrate_box_item.cpp)
 target_link_libraries(calibrate_box_item ${catkin_LIBRARIES})
 # add_dependencies(calibrate_box_item green_pick_cpp)
 target_link_libraries( calibrate_box_item ${OpenCV_LIBS} )
+
+############ ALGO CALIBRATION ############
+add_executable(algorithm_calibrator src/algorithm_calibrator.cpp)
+target_link_libraries(algorithm_calibrator ${catkin_LIBRARIES})
+# add_dependencies(algorithm_calibrator green_pick_cpp)
+target_link_libraries( algorithm_calibrator ${OpenCV_LIBS} )
