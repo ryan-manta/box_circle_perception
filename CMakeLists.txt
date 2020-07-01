@@ -220,10 +220,10 @@ target_link_libraries(perception_pipeline ${catkin_LIBRARIES})
 target_link_libraries( perception_pipeline ${OpenCV_LIBS} )
 
 ############ ITEM CALIBRATION ############
-add_executable(calibrate_box_item src/calibrate_box_item.cpp)
-target_link_libraries(calibrate_box_item ${catkin_LIBRARIES})
-# add_dependencies(calibrate_box_item green_pick_cpp)
-target_link_libraries( calibrate_box_item ${OpenCV_LIBS} )
+add_executable(box_item_calibrator src/box_item_calibrator.cpp)
+target_link_libraries(box_item_calibrator ${catkin_LIBRARIES})
+# add_dependencies(box_item_calibrator green_pick_cpp)
+target_link_libraries( box_item_calibrator ${OpenCV_LIBS} )
 
 ############ ALGO CALIBRATION ############
 add_executable(algorithm_calibrator src/algorithm_calibrator.cpp)
