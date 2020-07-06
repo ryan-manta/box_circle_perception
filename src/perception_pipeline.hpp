@@ -13,8 +13,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui/highgui.hpp>
-#include "detection_algos/hough_circle_detector.hpp"
-#include "detection_algos/surf_box_detector.hpp"
+#include "detection_algos/hough_circle_detector.cpp"
+#include "detection_algos/cluster_featurematch_box_detector.cpp"
 #include "green_pick/GeneratePickpoint.h"
 
 #include <string>
@@ -28,11 +28,9 @@ private:
     image_transport::ImageTransport image_transporter;
     image_transport::Subscriber image_subscriber;
     image_transport::Publisher image_publisher;
-
     cv_bridge::CvImagePtr cv_ptr;
 
     // Construct image transporter after ros node is initialized
-
 public:
     PerceptionPipeline();
   

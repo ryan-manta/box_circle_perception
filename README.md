@@ -1,5 +1,15 @@
 # green_pick_ros
 
+## Dependencies:
+1. OpenCV 2.4.9 (Needs installation)
+    - https://docs.opencv.org/master/d7/d9f/tutorial_linux_install.html
+
+2. Eigen 3.3.7 (Included)
+    - https://gitlab.com/libeigen/eigen.git
+
+3. KMeansRex (Included and trimmed down from original)
+    - https://github.com/tedlutkus/KMeansRex.git
+
 ## Currently Implemented:
 ### State Machine
 - Handles timing of station events including perception actions

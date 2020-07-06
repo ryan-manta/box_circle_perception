@@ -45,15 +45,19 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
             if (box_or_circle[i] == BOX) {
                 // SURF
                 int hessian_threshold = 400;
-                detect_boxes(this->cv_ptr->image, hessian_threshold);
+                int K = 12;
+                bool draw_feature_matches = true;
+                bool pick_success = detect_boxes(this->cv_ptr->image, hessian_threshold, K, draw_feature_matches);
                 
-                for (int i = 0; i < 3; i++) {
-                    res.pick_coordinates[i] = 0;
+                if (pick_success) {
+                    for (int i = 0; i < 3; i++) {
+                        res.pick_coordinates[i] = 0;
+                    }
+
+                    image_publisher.publish(cv_ptr->toImageMsg());
                 }
 
-                image_publisher.publish(cv_ptr->toImageMsg());
-                return true;
-
+                return pick_success;
             } else if (box_or_circle[i] == CIRCLE) {
                 // Hough circle detection
                 detect_circles(this->cv_ptr->image);

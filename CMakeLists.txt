@@ -213,6 +213,11 @@ include_directories(
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
+############ ALGO LIB ############
+#include_directories( src/detection_algos/lib/eigen-3.3.7 )
+#include_directories( src/detection_algos/lib/KMeansRex/src )
+#include_directories( src/detection_algos/lib/KMeansRex/lib )
+
 ############ PERCEPTION PIPELINE ############
 add_executable(perception_pipeline src/perception_pipeline.cpp)
 target_link_libraries(perception_pipeline ${catkin_LIBRARIES})
@@ -230,3 +235,4 @@ add_executable(algorithm_calibrator src/algorithm_calibrator.cpp)
 target_link_libraries(algorithm_calibrator ${catkin_LIBRARIES})
 # add_dependencies(algorithm_calibrator green_pick_cpp)
 target_link_libraries( algorithm_calibrator ${OpenCV_LIBS} )
+
