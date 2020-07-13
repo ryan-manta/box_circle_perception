@@ -15,12 +15,17 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "detection_algos/hough_circle_detector.cpp"
 #include "detection_algos/cluster_featurematch_box_detector.cpp"
+#include "detection_algos/get_depth_at_pickpoint.cpp"
 #include "green_pick/GeneratePickpoint.h"
-
 #include <string>
+#include <vector>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
 
 #define BOX 0
 #define CIRCLE 1
+
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 class PerceptionPipeline {
 private:
@@ -30,23 +35,42 @@ private:
     image_transport::Publisher image_publisher;
     cv_bridge::CvImagePtr cv_ptr;
 
-    // Construct image transporter after ros node is initialized
+    // Pointcloud data
+    PointCloud current_pointcloud;
+    ros::Publisher pointcloud_publisher;
+    bool get_pointcloud;
+
 public:
     PerceptionPipeline();
+    void set_pointcloud_publisher(ros::Publisher pointcloud_publisher);
   
     // Callback function for the image transport ROS node
     void perception_callback(const sensor_msgs::ImageConstPtr& msg);
 
+    // Callback function for the pointcloud node
+    void pointcloud_callback(const PointCloud::ConstPtr& msg);
+
     // Generate pickpoint service callback
     bool generate_pickpoint(green_pick::GeneratePickpoint::Request &req,
-                        green_pick::GeneratePickpoint::Response &res);
-                        
+                        green_pick::GeneratePickpoint::Response &res);              
 };
 
 int main(int argc, char** argv)
 {
+    // Initialize vision node
     ros::init(argc, argv, "perception_pipeline");
     PerceptionPipeline greenpick_perception_pipeline;
+
+    // Initialize pointcloud subscriber
+    ros::init(argc, argv, "pointcloud_sub");
+    ros::NodeHandle pointcloud_sub_nh;
+    ros::Subscriber pointcloud_sub = pointcloud_sub_nh.subscribe<PointCloud>("/camera/depth/color/points", 1, &PerceptionPipeline::pointcloud_callback, &greenpick_perception_pipeline);
+
+    // Initialize pointcloud publisher
+    ros::init(argc, argv, "pointcloud_pub");
+    ros::NodeHandle pointcloud_pub_nh;
+    ros::Publisher pointcloud_pub = pointcloud_pub_nh.advertise<PointCloud>("/perception_pipeline/output_points", 1);
+    greenpick_perception_pipeline.set_pointcloud_publisher(pointcloud_pub);
 
     ros::init(argc, argv, "pickpoint_generator_server");
     ros::NodeHandle n;

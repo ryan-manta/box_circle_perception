@@ -4,11 +4,18 @@
 1. OpenCV 2.4.9 (Needs installation)
     - https://docs.opencv.org/master/d7/d9f/tutorial_linux_install.html
 
-2. Eigen 3.3.7 (Included)
+2. PCL (Needs installation)
+    - https://pointclouds.org/
+    - sudo apt install libpcl-dev
+
+2. Eigen 3 (Needs installation)
     - https://gitlab.com/libeigen/eigen.git
 
 3. KMeansRex (Included and trimmed down from original)
     - https://github.com/tedlutkus/KMeansRex.git
+
+4. Realsense-ros (Needs installation)
+    - https://github.com/IntelRealSense/realsense-ros
 
 ## Currently Implemented:
 ### State Machine

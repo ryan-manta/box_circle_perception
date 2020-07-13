@@ -19,13 +19,13 @@
 
 static const std::string OPENCV_WINDOW = "Image window";
 
-int hessian_slider = 400;
+int hessian_slider = 100;
 int hessian_slider_max = 1000;
-int hessian = 400;
+int hessian = 100;
 
-int K_slider = 6;
+int K_slider = 20;
 int K_max = 24;
-int K = 6;
+int K = 20;
 
 class AlgoCalibrator {
 private:
@@ -92,16 +92,18 @@ public:
 
         // Detect box using new hessian threshold
         //cv::Mat matches_image;
-        bool show_feature_matches = false;
+        bool show_feature_matches = true;
+        std::vector<cv::Point2f> pickpoints_xy;
         try {
-            detect_boxes(this->cv_ptr->image, hessian, K, show_feature_matches);
+            detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian, K, show_feature_matches);
         } catch (cv::Exception e) {
             ROS_INFO("Segmentation failed!");
         }
 
         // Show modified image
         cv::imshow(OPENCV_WINDOW, this->cv_ptr->image);
-        cv::waitKey(250);
+        cv::waitKey(500);
+        //cv::waitKey(1000);
     }
 
     ~AlgoCalibrator() {

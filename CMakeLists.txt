@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   cv_bridge
   image_transport
+  pcl_ros
   message_generation
 )
 
@@ -213,10 +214,10 @@ include_directories(
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
-############ ALGO LIB ############
-#include_directories( src/detection_algos/lib/eigen-3.3.7 )
-#include_directories( src/detection_algos/lib/KMeansRex/src )
-#include_directories( src/detection_algos/lib/KMeansRex/lib )
+############ PCL ############
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+
 
 ############ PERCEPTION PIPELINE ############
 add_executable(perception_pipeline src/perception_pipeline.cpp)

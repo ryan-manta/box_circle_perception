@@ -1,9 +1,7 @@
 /* Circle Detection */
 //https://docs.opencv.org/master/d4/d70/tutorial_hough_circle.html
 
-#include "opencv2/imgcodecs.hpp"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "hough_circle_detector.hpp"
 
 void detect_circles(cv::Mat& source_img_ptr) {
     // Transfer from rgb to grayscale color space
