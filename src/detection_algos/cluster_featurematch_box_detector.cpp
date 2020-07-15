@@ -35,12 +35,13 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
     }
 
     //Detect the keypoints using SURF Detector, compute the descriptors
-    cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
+    //cv::Ptr<cv::ORB> detector_2
+    //cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
     std::vector<cv::KeyPoint> object_reference_keypoints, sampled_scene_keypoints;
     cv::Mat object_reference_descriptors, sampled_scene_descriptors;
     cv::InputOutputArray detector_mask = cv::noArray();
-    detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
-    detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
+    //detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
+    //detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
 
     // Convert keypoint vector to 2D double vector
     int N_rows = sampled_scene_keypoints.size();
@@ -98,7 +99,7 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
         
         // Matching descriptor vectors with a FLANN based matcher
-        int descriptor_matcher_type = cv::DescriptorMatcher::FLANNBASED;
+        cv::DescriptorMatcher::MatcherType descriptor_matcher_type = cv::DescriptorMatcher::FLANNBASED;
         cv::Ptr<cv::DescriptorMatcher> descriptor_matcher = cv::DescriptorMatcher::create(descriptor_matcher_type);
         std::vector<std::vector<cv::DMatch>> knn_matches;
         int desired_number_of_matches = 2;
@@ -122,10 +123,10 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
             const cv::Scalar match_color = cv::Scalar::all(-1);
             const cv::Scalar single_point_color = cv::Scalar::all(-1);
             const std::vector<char> matches_mask = std::vector<char>();
-            int drawing_flag = 0;
+            cv::DrawMatchesFlags drawing_flag = cv::DrawMatchesFlags::DEFAULT;
             if (first_drawmatches) {
                 // For first cluster, create new image
-                drawing_flag = cv::DrawMatchesFlags::DEFAULT;
+                //drawing_flag = cv::DrawMatchesFlags::DEFAULT;
                 first_drawmatches = false;
             } else {
                 // For subsequent clusters, write over existing image

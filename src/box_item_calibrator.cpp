@@ -12,6 +12,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui.hpp>
+//#include <opencv4/opencv2/highgui.hpp>
 #include "ros/ros.h"
 
 
@@ -35,15 +36,17 @@ public:
         // OpenCV window
         cv::namedWindow(OPENCV_WINDOW);
         cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::onMouse, this);
-        cv::createButton("CALIBRATE ITEM", &Calibrator::calibrate_button_callback, this, CV_PUSH_BUTTON,1);
+        //cv::createButton("CALIBRATE ITEM", &Calibrator::calibrate_button_callback, this, cv::CV_PUSH_BUTTON,1);
     }
 
+    /*
     static void calibrate_button_callback(int state, void* ptr) {
         // Set do_calibration to true
         Calibrator* this_c = (Calibrator*) ptr;
         this_c->do_calibration = true;
         return;
     }
+    */
 
     static void onMouse(int event, int x, int y, int, void* ptr) {
         if(event != cv::EVENT_LBUTTONDOWN) {
