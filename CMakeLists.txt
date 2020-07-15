@@ -211,8 +211,8 @@ include_directories(
 # catkin_add_nosetests(test)
 
 ############ OPENCV ############
-find_package( OpenCV REQUIRED )
-include_directories( ${OpenCV_INCLUDE_DIRS} )
+#find_package( OpenCV REQUIRED )
+#include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 ############ PCL ############
 find_package(PCL REQUIRED)
