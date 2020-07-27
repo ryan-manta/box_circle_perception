@@ -13,9 +13,9 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui/highgui.hpp>
-#include "detection_algos/hough_circle_detector.cpp"
-#include "detection_algos/cluster_featurematch_box_detector.cpp"
-#include "detection_algos/get_depth_at_pickpoint.cpp"
+#include "detection_algos/hough_circle_detector.hpp"
+#include "detection_algos/cluster_featurematch_box_detector.hpp"
+#include "detection_algos/get_depth_at_pickpoint.hpp"
 #include "green_pick/GeneratePickpoint.h"
 #include <string>
 #include <vector>

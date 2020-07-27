@@ -105,7 +105,17 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
                 return true;
             } else if (box_or_circle[i] == CIRCLE) {
                 // Hough circle detection
+
+
+
+
+
                 detect_circles(this->cv_ptr->image);
+                
+
+
+
+
                 
                 for (int i = 0; i < 3; i++) {
                     res.pick_coordinates[i] = 0;
