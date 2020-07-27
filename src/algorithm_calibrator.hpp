@@ -16,8 +16,8 @@
 #include <opencv2/highgui.hpp>
 //#include <opencv4/opencv2/highgui.hpp>
 #include "ros/ros.h"
-#include "detection_algos/cluster_featurematch_box_detector.hpp"
-#include "detection_algos/hough_circle_detector.hpp"
+#include "cluster_featurematch_box_detector.hpp"
+#include "hough_circle_detector.hpp"
 #include <string>
 #include <iostream>
 
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    AlgoCalibrator AlgoCalibrator(n_converter, box_or_circle_algo);
+    AlgoCalibrator AlgoCalibrator(n_converter, BOX);
 
     ros::spin();
     return 0;

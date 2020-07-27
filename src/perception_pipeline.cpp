@@ -58,77 +58,68 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
     // Check our item set for the item we want to pick
     for (int i = 0; i < items.size(); i++) {
         if (req.item_name.compare(items[i]) == 0) {
+            std::vector<cv::Point2f> pickpoints_xy;
+            this->get_pointcloud = true;
+            int pickpoint_sample_size = 10;
+            int minimum_required_pickpoints = 8;
+            int number_of_success = 0;
 
             // If we hit item, perform its associated detection method
             if (box_or_circle[i] == BOX) {
-                this->get_pointcloud = true;
-
-                // SURF
+                // Collect multiple batches of pickpoints using cluster feature map box detection
                 int hessian_threshold = 100;
                 int K = 20;
                 bool draw_feature_matches = false;
-                std::vector<cv::Point2f> pickpoints_xy;
-                int pickpoint_sample_size = 10;
-                int minimum_required_pickpoints = 8;
-                int number_of_success = 0;
                 for (int j = 0; j < pickpoint_sample_size; j++) {
                     bool pick_success = detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian_threshold, K, draw_feature_matches);
                     if (pick_success) {
                         number_of_success++;
                     }
                 }
-
-                // Check that we have minimum number of pickpoints required to select from
-                if (number_of_success <= minimum_required_pickpoints) {
-                    return false;
-                }
-
-                // Assume that all pickpoints returned are good pickpoints to choose from (ie. detect_boxes should only return good pickpoints)
-                // Go with pickpoint closest to bottom left of inventory (minimum magnitude)
-                float min_magnitude = std::sqrt(std::pow(pickpoints_xy[0].x,2) + std::pow(pickpoints_xy[0].y,2));
-                int min_point_index = 0;
-                for (int j = 0; j < pickpoints_xy.size(); j++) {
-                    float point_magnitude = std::sqrt(std::pow(pickpoints_xy[j].x,2) + std::pow(pickpoints_xy[j].y,2));
-                    if (point_magnitude < min_magnitude) {
-                        min_magnitude = min_magnitude;
-                        min_point_index = j;
-                    }
-                }
-
-                // Get the z_coordinate for the point picked out
-                PointCloud::ConstPtr pointcloud_ptr(&this->current_pointcloud, &DoNotFree<PointCloud>);
-                float z_coordinate = get_depth_at_pickpoint(pickpoints_xy[min_point_index], pointcloud_ptr);
-                res.pick_coordinates[0] = pickpoints_xy[min_point_index].x;
-                res.pick_coordinates[1] = pickpoints_xy[min_point_index].y;
-                res.pick_coordinates[2] = z_coordinate;
-                image_publisher.publish(cv_ptr->toImageMsg());
-                return true;
             } else if (box_or_circle[i] == CIRCLE) {
-                // Hough circle detection
-
-
-
-
-
-                detect_circles(this->cv_ptr->image);
-                
-
-
-
-
-                
-                for (int i = 0; i < 3; i++) {
-                    res.pick_coordinates[i] = 0;
-                }
-
-                image_publisher.publish(cv_ptr->toImageMsg());
-                return true;
-                
+                // Collect multiple batches of pickpoints using hough circle detection
+                for (int j = 0; j < pickpoint_sample_size; j++) {
+                    double min_circle_dist = 10;
+                    double canny_edge_detector_thresh = 70;
+                    double hough_accumulator_thresh = 100;
+                    int circle_radius = 50;
+                    int circle_radius_perc_tolerance = 50;
+                    bool pick_success = detect_circles(pickpoints_xy, this->cv_ptr->image, min_circle_dist, canny_edge_detector_thresh, 
+                                hough_accumulator_thresh, circle_radius, circle_radius_perc_tolerance);
+                    if (pick_success) {
+                        number_of_success++;
+                    }
+                }           
             } else {
                 ROS_ERROR("Item is not properly labeled.");
                 return false;
             }
 
+            // Check that we have minimum number of pickpoints required to select from
+            if (number_of_success <= minimum_required_pickpoints) {
+                return false;
+            }
+
+            // Assume that all pickpoints returned are good pickpoints to choose from (ie. detect_boxes should only return good pickpoints)
+            // Go with pickpoint closest to bottom left of inventory (minimum magnitude)
+            float min_magnitude = std::sqrt(std::pow(pickpoints_xy[0].x, 2) + std::pow(pickpoints_xy[0].y, 2));
+            int min_point_index = 0;
+            for (int j = 0; j < pickpoints_xy.size(); j++) {
+                float point_magnitude = std::sqrt(std::pow(pickpoints_xy[j].x, 2) + std::pow(pickpoints_xy[j].y, 2));
+                if (point_magnitude < min_magnitude) {
+                    min_magnitude = min_magnitude;
+                    min_point_index = j;
+                }
+            }
+
+            // Get the z_coordinate for the point picked out
+            PointCloud::ConstPtr pointcloud_ptr(&this->current_pointcloud, &DoNotFree<PointCloud>);
+            float z_coordinate = get_depth_at_pickpoint(pickpoints_xy[min_point_index], pointcloud_ptr);
+            res.pick_coordinates[0] = pickpoints_xy[min_point_index].x;
+            res.pick_coordinates[1] = pickpoints_xy[min_point_index].y;
+            res.pick_coordinates[2] = z_coordinate;
+            image_publisher.publish(cv_ptr->toImageMsg());
+            return true;
         }
     }
     

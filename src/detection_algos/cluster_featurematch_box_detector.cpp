@@ -21,8 +21,8 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
 
     // Load reference and sampled scene images
     cv::Mat object_reference_image = cv::imread("data/cropped_image.jpg");
-    //cv::Mat object_reference_image = cv::imread("detection_algos/cropped_image.jpg");
-    //source_img_ptr = cv::imread("top_cereal.jpg");
+    //cv::Mat object_reference_image = cv::imread("detection_algos/test_images/cropped_image.jpg");
+    //source_img_ptr = cv::imread("detection_algos/test_images/top_cereal.jpg");
 
     // Check that reference image has data
     if (object_reference_image.empty()){
@@ -35,11 +35,25 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
     }
 
     //Detect the keypoints using SURF Detector, compute the descriptors
-    //cv::Ptr<cv::ORB> detector_2
-    //cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
+    //cv::Ptr<cv::ORB> orb_detector = cv::ORB::create();
+    //cv::Ptr<cv::KAZE> kaze_detector = cv::KAZE::create(hessian_threshold / 100000.0);
+    //cv::Ptr<cv::BRISK> brisk_detector = cv::BRISK::create(hessian_threshold);
+    //Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
+    cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
     std::vector<cv::KeyPoint> object_reference_keypoints, sampled_scene_keypoints;
     cv::Mat object_reference_descriptors, sampled_scene_descriptors;
-    cv::InputOutputArray detector_mask = cv::noArray();
+    //cv::InputOutputArray detector_mask = cv::noArray();
+    detector->detectAndCompute(object_reference_image, cv::Mat(), object_reference_keypoints, object_reference_descriptors);
+    detector->detectAndCompute(source_img_ptr, cv::Mat(), sampled_scene_keypoints, sampled_scene_descriptors);
+
+    //std::cout << "===== Check =====\n";
+    //detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
+    //detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
+    //cv::Ptr<cv::ORB> detector_2
+    //cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
+    //std::vector<cv::KeyPoint> object_reference_keypoints, sampled_scene_keypoints;
+    //cv::Mat object_reference_descriptors, sampled_scene_descriptors;
+    //cv::InputOutputArray detector_mask = cv::noArray();
     //detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
     //detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
 
@@ -87,8 +101,10 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
 
         // Extract the cluster subset of keypoints and descriptors from the reference and scene
+        //cv::resize(scene_descriptors_cluster, scene_descriptors_cluster, )
         scene_keypoints_cluster.resize(num_points_in_cluster);
         scene_descriptors_cluster.resize(num_points_in_cluster);
+        //cv::Mat scene_descriptors_cluster = cv::Mat::zeros(num_points_in_cluster, sampled_scene_descriptors.cols, sampled_scene_descriptors.type());
         int ind = 0;
         for (int i = 0; i < number_of_points_total; i++) {
             if (cluster_labels(i,0) == cluster) {
@@ -99,6 +115,7 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
         
         // Matching descriptor vectors with a FLANN based matcher
+        //cv::DescriptorMatcher::MatcherType descriptor_matcher_type = cv::DescriptorMatcher::BRUTEFORCE_HAMMING;
         cv::DescriptorMatcher::MatcherType descriptor_matcher_type = cv::DescriptorMatcher::FLANNBASED;
         cv::Ptr<cv::DescriptorMatcher> descriptor_matcher = cv::DescriptorMatcher::create(descriptor_matcher_type);
         std::vector<std::vector<cv::DMatch>> knn_matches;
