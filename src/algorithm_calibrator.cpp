@@ -8,8 +8,23 @@ int hessian = 100;
 
 // Number of clusters to run segmentation on in image (need at least one for each object)
 int K_slider = 20;
-int K_max = 24;
+int K_max = 100;
 int K = 20;
+
+// Angle threshold for parallel sides of detected box
+int parallel_angle_threshold_slider = 8;
+int parallel_angle_threshold_max = 90;
+int parallel_angle_threshold = 8;
+
+// Minimum edge length for detected box
+int min_parallelogram_edge_length_slider = 10;
+int min_parallelogram_edge_length_max = 200;
+int min_parallelogram_edge_length = 10;
+
+// Right angle threshold for detected box (applicable for top-down view of inventory)
+int right_angle_threshold_slider = 10;
+int right_angle_threshold_max = 90;
+int right_angle_threshold = 10;
 
 /* CIRCLE DETECTOR PARAMETERS */
 // Minimum distance between each circle
@@ -55,6 +70,18 @@ AlgoCalibrator::AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_al
         std::sprintf(TrackbarName_kmeans, "K-Means x %d", K_max);
         cv::createTrackbar(TrackbarName_kmeans, OPENCV_WINDOW, &K_slider, K_max, &AlgoCalibrator::on_trackbar_kmeans, this);
 
+        char TrackbarName_parallel_angle[50];
+        std::sprintf(TrackbarName_parallel_angle, "Parallel angle threshold x %d", parallel_angle_threshold_max);
+        cv::createTrackbar(TrackbarName_parallel_angle, OPENCV_WINDOW, &parallel_angle_threshold_slider, parallel_angle_threshold_max, &AlgoCalibrator::on_trackbar_parallel_angle_threshold, this);
+
+        char TrackbarName_min_parallelogram_edge_length[50];
+        std::sprintf(TrackbarName_min_parallelogram_edge_length, "Minimum parallelogram edge length x %d", min_parallelogram_edge_length_max);
+        cv::createTrackbar(TrackbarName_min_parallelogram_edge_length, OPENCV_WINDOW, &min_parallelogram_edge_length_slider, min_parallelogram_edge_length_max, &AlgoCalibrator::on_trackbar_min_parallelogram_edge_length, this);
+
+        char TrackbarName_right_angle_threshold[50];
+        std::sprintf(TrackbarName_right_angle_threshold, "Right angle threshold x %d", right_angle_threshold_max);
+        cv::createTrackbar(TrackbarName_right_angle_threshold, OPENCV_WINDOW, &right_angle_threshold_slider, right_angle_threshold_max, &AlgoCalibrator::on_trackbar_right_angle_threshold, this);
+
     } else if (box_or_circle_algo == CIRCLE) {
         /* CIRCLE DETECTOR PARAMETER SLIDERS INIT */
         char TrackbarName_circle_dist[50];
@@ -87,6 +114,18 @@ void AlgoCalibrator::on_trackbar_hessian(int, void *ptr) {
 void AlgoCalibrator::on_trackbar_kmeans(int, void *ptr) {
     K = K_slider;
     ROS_INFO("K: %u", K);
+}
+void AlgoCalibrator::on_trackbar_parallel_angle_threshold(int, void *ptr) {
+    parallel_angle_threshold = parallel_angle_threshold_slider;
+    ROS_INFO("parallel_angle_threshold: %u", parallel_angle_threshold);
+}
+void AlgoCalibrator::on_trackbar_min_parallelogram_edge_length(int, void *ptr) {
+    min_parallelogram_edge_length = min_parallelogram_edge_length_slider;
+    ROS_INFO("min_parallelogram_edge_length: %u", min_parallelogram_edge_length);
+}
+void AlgoCalibrator::on_trackbar_right_angle_threshold(int, void *ptr) {
+    right_angle_threshold = right_angle_threshold_slider;
+    ROS_INFO("right_angle_threshold: %u", right_angle_threshold);
 }
 
 /* CIRCLE DETECTOR SLIDER CALLBACKS */
@@ -129,9 +168,9 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &
     std::vector<cv::Point2f> pickpoints_xy;
     if (this->box_or_circle_algo == BOX) {
         // Detect boxes in image using current calibrator values
-        bool show_feature_matches = true;
+        bool show_feature_matches = false;
         try {
-            detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian, K, show_feature_matches);
+            detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
         } catch (cv::Exception e) {
             ROS_INFO("Segmentation failed!");
         }
@@ -147,7 +186,7 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &
 
     // Show modified image
     cv::imshow(OPENCV_WINDOW, this->cv_ptr->image);
-    cv::waitKey(500);
+    cv::waitKey(100);
 }
 
 AlgoCalibrator::~AlgoCalibrator() {

@@ -12,7 +12,8 @@
 
 Eigen::IOFormat CleanFmt(3, 0, " ", "\n", "[", "]");
 
-bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& source_img_ptr, int hessian_threshold, int K, bool draw_feature_matches) {
+bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& source_img_ptr, int hessian_threshold, int K, 
+                    float parallel_angle_threshold, float min_parallelogram_edge_length, float right_angle_threshold, bool draw_feature_matches) {
     // Start timer to track perception time
     //auto start = chrono::high_resolution_clock::now();
 
@@ -21,6 +22,7 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
 
     // Load reference and sampled scene images
     cv::Mat object_reference_image = cv::imread("data/cropped_image.jpg");
+
     //cv::Mat object_reference_image = cv::imread("detection_algos/test_images/cropped_image.jpg");
     //source_img_ptr = cv::imread("detection_algos/test_images/top_cereal.jpg");
 
@@ -35,18 +37,20 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
     }
 
     //Detect the keypoints using SURF Detector, compute the descriptors
+
     //cv::Ptr<cv::ORB> orb_detector = cv::ORB::create();
     //cv::Ptr<cv::KAZE> kaze_detector = cv::KAZE::create(hessian_threshold / 100000.0);
     //cv::Ptr<cv::BRISK> brisk_detector = cv::BRISK::create(hessian_threshold);
     //Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
-    cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
+    static cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
+    //std::cout << "======= CHECK2 =======\n";
+
     std::vector<cv::KeyPoint> object_reference_keypoints, sampled_scene_keypoints;
     cv::Mat object_reference_descriptors, sampled_scene_descriptors;
-    //cv::InputOutputArray detector_mask = cv::noArray();
-    detector->detectAndCompute(object_reference_image, cv::Mat(), object_reference_keypoints, object_reference_descriptors);
-    detector->detectAndCompute(source_img_ptr, cv::Mat(), sampled_scene_keypoints, sampled_scene_descriptors);
+    cv::InputOutputArray detector_mask = cv::noArray();
+    detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
+    detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
 
-    //std::cout << "===== Check =====\n";
     //detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
     //detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
     //cv::Ptr<cv::ORB> detector_2
@@ -196,9 +200,9 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         //(0) - top left        (1) - top right
         //(3) - bot left        (2) - bot right
         // Get angles of parallel lines
-        float angle_threshold = 8; // [deg]
-        angle_threshold = angle_threshold * M_PI / 180.0;
-        float min_parallelogram_edge_length = 20;
+        //float angle_threshold = 8; // [deg]
+        float parallel_angle_threshold_rad = parallel_angle_threshold * M_PI / 180.0;
+        //float min_parallelogram_edge_length = 20;
         std::vector<float> angles(4);
         std::vector<int> edge_start_ind = {0, 3, 3, 2};
         std::vector<int> edge_end_ind = {1, 2, 0, 1};
@@ -212,30 +216,30 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
             
             // Determine if edge is long enough for to be considered as a potential pick candidate
             float edge_magnitude = std::sqrt(std::pow(x_length,2) + std::pow(y_length,2));
-            if (edge_magnitude < min_parallelogram_edge_length) {
+            if (edge_magnitude < (float) min_parallelogram_edge_length) {
                 edge_too_short = true;
             }
         }
         if (edge_too_short) {
             continue;
         }
-        if ( std::fabs(angles[0] - angles[1]) > angle_threshold) {
+        if ( std::fabs(angles[0] - angles[1]) > parallel_angle_threshold_rad) {
             continue;
         }
-        if ( std::fabs(angles[2] - angles[3]) > angle_threshold) {
+        if ( std::fabs(angles[2] - angles[3]) > parallel_angle_threshold_rad) {
             continue;
         }
 
         // Check that angles are within tolerance of being considered 90deg
-        float right_angle_threshold = 10; // [deg]
-        right_angle_threshold = right_angle_threshold * M_PI / 180.0;
+        //float right_angle_threshold = 10; // [deg]
+        float right_angle_threshold_rad = right_angle_threshold * M_PI / 180.0;
         float right_angle = 90 * M_PI / 180.0;
         float top_left_corner_angle = std::fabs(angles[0] - angles[2]);
         float bot_right_corner_angle = std::fabs(angles[1] - angles[3]);
-        if (top_left_corner_angle > (right_angle + right_angle_threshold) || top_left_corner_angle < (right_angle - right_angle_threshold)) {
+        if (top_left_corner_angle > (right_angle + right_angle_threshold_rad) || top_left_corner_angle < (right_angle - right_angle_threshold_rad)) {
             continue;
         }
-        if (bot_right_corner_angle > (right_angle + right_angle_threshold) || bot_right_corner_angle < (right_angle - right_angle_threshold)) {
+        if (bot_right_corner_angle > (right_angle + right_angle_threshold_rad) || bot_right_corner_angle < (right_angle - right_angle_threshold_rad)) {
             continue;
         }
 

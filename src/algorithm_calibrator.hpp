@@ -39,6 +39,9 @@ public:
     /* BOX DETECTION PARAMETERS */
     static void on_trackbar_hessian(int, void* ptr);
     static void on_trackbar_kmeans(int, void* ptr);
+    static void on_trackbar_parallel_angle_threshold(int, void* ptr);
+    static void on_trackbar_min_parallelogram_edge_length(int, void* ptr);
+    static void on_trackbar_right_angle_threshold(int, void* ptr);
 
     /* CIRCLE DETECTOR PARAMETERS */
     static void on_trackbar_circle_dist(int, void* ptr);
@@ -63,10 +66,10 @@ int main(int argc, char **argv) {
     while (!valid_input) {
         std::cout << "Please enter the desired algo calibration ('box' or 'circle'): ";
         std::cin >> chosen_algo;
-        if (chosen_algo.compare("box")) {
+        if (chosen_algo.compare("box") == 0) {
             box_or_circle_algo = BOX;
             valid_input = true;
-        } else if (chosen_algo.compare("circle")) {
+        } else if (chosen_algo.compare("circle") == 0) {
             box_or_circle_algo = CIRCLE;
             valid_input = true;
         } else {
@@ -74,7 +77,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    AlgoCalibrator AlgoCalibrator(n_converter, BOX);
+    AlgoCalibrator AlgoCalibrator(n_converter, box_or_circle_algo);
 
     ros::spin();
     return 0;

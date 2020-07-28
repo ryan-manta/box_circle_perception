@@ -69,9 +69,12 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
                 // Collect multiple batches of pickpoints using cluster feature map box detection
                 int hessian_threshold = 100;
                 int K = 20;
+                int parallel_angle_threshold = 8;
+                int min_parallelogram_edge_length = 10;
+                int right_angle_threshold = 10;
                 bool draw_feature_matches = false;
                 for (int j = 0; j < pickpoint_sample_size; j++) {
-                    bool pick_success = detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian_threshold, K, draw_feature_matches);
+                    bool pick_success = detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian_threshold, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, draw_feature_matches);
                     if (pick_success) {
                         number_of_success++;
                     }
@@ -79,11 +82,11 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
             } else if (box_or_circle[i] == CIRCLE) {
                 // Collect multiple batches of pickpoints using hough circle detection
                 for (int j = 0; j < pickpoint_sample_size; j++) {
-                    double min_circle_dist = 10;
-                    double canny_edge_detector_thresh = 70;
-                    double hough_accumulator_thresh = 100;
-                    int circle_radius = 50;
-                    int circle_radius_perc_tolerance = 50;
+                    double min_circle_dist = 20;
+                    double canny_edge_detector_thresh = 200;
+                    double hough_accumulator_thresh = 25;
+                    int circle_radius = 25;
+                    int circle_radius_perc_tolerance = 30;
                     bool pick_success = detect_circles(pickpoints_xy, this->cv_ptr->image, min_circle_dist, canny_edge_detector_thresh, 
                                 hough_accumulator_thresh, circle_radius, circle_radius_perc_tolerance);
                     if (pick_success) {
@@ -97,7 +100,7 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
 
             // Check that we have minimum number of pickpoints required to select from
             if (number_of_success <= minimum_required_pickpoints) {
-                return false;
+                //return false;
             }
 
             // Assume that all pickpoints returned are good pickpoints to choose from (ie. detect_boxes should only return good pickpoints)
