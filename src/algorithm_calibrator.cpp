@@ -180,38 +180,43 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &
     //this->cv_ptr->image = this->cv_ptr->image(selected_rectangle);
 
     std::vector<cv::Point2f> pickpoints_xy;
-    for (int i = 0; i < 8; i++) {
     if (this->box_or_circle_algo == BOX) {
-        // Detect boxes in image using current calibrator values
-        bool show_feature_matches = false;
-        try {
-            detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
-        } catch (cv::Exception e) {
-            ROS_INFO("Segmentation failed!");
+        int number_of_batches = 8;
+        for (int i = 0; i < number_of_batches; i++) {
+            // Detect boxes in image using current calibrator values
+            bool show_feature_matches = false;
+            try {
+                detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
+            } catch (cv::Exception e) {
+                ROS_INFO("Segmentation failed!");
+            }
         }
     } else if (this->box_or_circle_algo == CIRCLE) {
         // Detect circles in image using current calibrator values
         try {
-            detect_circles(pickpoints_xy, this->cv_ptr->image, (double) min_circle_dist, (double) canny_edge_detector_thresh, 
+            detect_circles(pickpoints_xy, cropped_img, (double) min_circle_dist, (double) canny_edge_detector_thresh, 
                                 (double) hough_accumulator_thresh, circle_radius, circle_radius_perc_tolerance);
         } catch (cv::Exception e) {
             ROS_INFO("Segmentation failed!");
         }
     }
-    }
-
 
     // Show modified image
-    //cv::resiz
+    //cv::resize
     this->cv_ptr->image(selected_rectangle) = cropped_img;
     cv::imshow(OPENCV_WINDOW, this->cv_ptr->image);
-    cv::waitKey(500);
-    std::cout << "Save?\n";
-    int save;
-    std::cin >> save;
-    if (save == 1) {
-        cv::imwrite("./data/result.jpg", this->cv_ptr->image);
+    if (this->box_or_circle_algo == BOX) {
+        cv::waitKey(500);
+        std::cout << "Save?\n";
+        int save;
+        std::cin >> save;
+        if (save == 1) {
+            cv::imwrite("./data/result.jpg", this->cv_ptr->image);
+        }
+    } else if (this->box_or_circle_algo == CIRCLE) {
+        cv::waitKey(3);
     }
+
 }
 
 AlgoCalibrator::~AlgoCalibrator() {

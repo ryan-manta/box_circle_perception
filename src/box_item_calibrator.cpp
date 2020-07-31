@@ -1,10 +1,10 @@
 #include "box_item_calibrator.hpp"
 
 Calibrator::Calibrator(ros::NodeHandle n_converter) : image_transporter(n_converter) {
-    image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
-                                                   &Calibrator::image_converter_callback, this);
-    //image_subscriber = image_transporter.subscribe("/pylon_camera_node/image_raw", 1,
+    //image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
     //                                               &Calibrator::image_converter_callback, this);
+    image_subscriber = image_transporter.subscribe("/pylon_camera_node/image_raw", 1,
+                                                   &Calibrator::image_converter_callback, this);
 
     // Set calibration to false at start
     do_calibration = false;
