@@ -50,6 +50,9 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
     cv::InputOutputArray detector_mask = cv::noArray();
     detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
     detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
+    if (object_reference_keypoints.empty() || object_reference_descriptors.empty() || sampled_scene_keypoints.empty() || sampled_scene_descriptors.empty()) {
+        return false;
+    }
 
     //detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
     //detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);

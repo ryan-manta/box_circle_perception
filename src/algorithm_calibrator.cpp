@@ -2,19 +2,19 @@
 
 /* BOX DETECTOR PARAMETERS */
 // Hessian value used for feature detection
-int hessian_slider = 100;
+int hessian_slider = 50;
 int hessian_slider_max = 1000;
-int hessian = 100;
+int hessian = 50;
 
 // Number of clusters to run segmentation on in image (need at least one for each object)
-int K_slider = 20;
+int K_slider = 36;
 int K_max = 100;
-int K = 20;
+int K = 36;
 
 // Angle threshold for parallel sides of detected box
-int parallel_angle_threshold_slider = 8;
+int parallel_angle_threshold_slider = 5;
 int parallel_angle_threshold_max = 90;
-int parallel_angle_threshold = 8;
+int parallel_angle_threshold = 5;
 
 // Minimum edge length for detected box
 int min_parallelogram_edge_length_slider = 10;
@@ -22,9 +22,9 @@ int min_parallelogram_edge_length_max = 200;
 int min_parallelogram_edge_length = 10;
 
 // Right angle threshold for detected box (applicable for top-down view of inventory)
-int right_angle_threshold_slider = 10;
+int right_angle_threshold_slider = 5;
 int right_angle_threshold_max = 90;
-int right_angle_threshold = 10;
+int right_angle_threshold = 5;
 
 /* CIRCLE DETECTOR PARAMETERS */
 // Minimum distance between each circle
@@ -53,11 +53,14 @@ int circle_radius_perc_tolerance_max = 50;
 int circle_radius_perc_tolerance = 10;
 
 AlgoCalibrator::AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo) : image_transporter(n_converter) {
-    image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
+    //image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
+    //                                               &AlgoCalibrator::image_converter_callback, this);
+    image_subscriber = image_transporter.subscribe("/pylon_camera_node/image_raw", 1,
                                                    &AlgoCalibrator::image_converter_callback, this);
 
     // OpenCV window
-    cv::namedWindow(OPENCV_WINDOW, cv::WINDOW_AUTOSIZE);
+    cv::namedWindow(OPENCV_WINDOW, cv::WINDOW_NORMAL);
+    cv::resizeWindow(OPENCV_WINDOW, 1920, 1080);
     
     this->box_or_circle_algo = box_or_circle_algo;
     if (box_or_circle_algo == BOX) {
@@ -150,6 +153,8 @@ void AlgoCalibrator::on_trackbar_radius_tolerance(int, void *ptr) {
     ROS_INFO("circle_radius_perc_tolerance: %u", circle_radius_perc_tolerance);
 }
 
+bool first_time = true;
+cv::Rect2d selected_rectangle;
 void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &msg) {
     // Try to copy ROS image to OpenCV image
     try {
@@ -165,12 +170,22 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &
         return;
     }
 
+    if (first_time) {
+        selected_rectangle = cv::selectROI(OPENCV_WINDOW, this->cv_ptr->image);
+        first_time = false;
+    }
+
+    // Crop image down to selected ROI
+    cv::Mat cropped_img = this->cv_ptr->image(selected_rectangle);
+    //this->cv_ptr->image = this->cv_ptr->image(selected_rectangle);
+
     std::vector<cv::Point2f> pickpoints_xy;
+    for (int i = 0; i < 8; i++) {
     if (this->box_or_circle_algo == BOX) {
         // Detect boxes in image using current calibrator values
         bool show_feature_matches = false;
         try {
-            detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
+            detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
         } catch (cv::Exception e) {
             ROS_INFO("Segmentation failed!");
         }
@@ -183,10 +198,20 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &
             ROS_INFO("Segmentation failed!");
         }
     }
+    }
+
 
     // Show modified image
+    //cv::resiz
+    this->cv_ptr->image(selected_rectangle) = cropped_img;
     cv::imshow(OPENCV_WINDOW, this->cv_ptr->image);
-    cv::waitKey(100);
+    cv::waitKey(500);
+    std::cout << "Save?\n";
+    int save;
+    std::cin >> save;
+    if (save == 1) {
+        cv::imwrite("./data/result.jpg", this->cv_ptr->image);
+    }
 }
 
 AlgoCalibrator::~AlgoCalibrator() {
