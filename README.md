@@ -1,4 +1,4 @@
-# green_pick_ros
+# Box Circle Detection
 
 ## Dependencies:
 1. OpenCV
@@ -18,10 +18,6 @@
     - https://github.com/IntelRealSense/realsense-ros
 
 ## Currently Implemented:
-### State Machine
-- Handles timing of station events including perception actions
-    and robot movement
-
 ### Perception Pipeline
 - Handles conversion between ROS Image messages and OpenCV image objects
 - Provides ROS service (/generate_pickpoint) that selects and runs the appropriate detection algorithm based on the desired item input
