@@ -1,8 +1,18 @@
 /*  
-    This header lays out the master perception pipeline running on the
-    Green Pick station. It handles conversion from ROS Image msgs to OpenCV
-    images and initiates pickpoint generation or item calibration depending
-    on the station's state machine
+    This perception pipeline is what should be used after calibrating items and algorithms.
+    The pipeline is intialized and then provides a service that can be called to generate a pickpoint [x, y, z].
+    The service takes an input vector (that will be used to store the pickpoints generated) as well as the name of the item to be picked.
+    Currently, the item names and their associated types are hardcoded in, it should be straight forward to have this read from a file if needed.
+    The reference image for box detection currently defaults to the "cropped_image.jpg" file in the data/ folder.
+    
+    * NOTE *
+    While the perception algorithms are implemented, further integration is needed to get the pipeline ready for robotic picking:
+    For development, a realsense camera was used and pickpoints were generated in the realsense camera frame.
+    In order to use multiple sensors and/or use the generated pickpoint for robotic manipulation, the sensor frames will need to be
+    calibrated with respect to the robot frame so that the robot can properly move to the position output of the perception pipeline.
+    
+    For a tutorial on camera calibration, see:
+    https://industrial-training-master.readthedocs.io/en/melodic/_source/demo3/Setting-up-a-3D-sensor.html?highlight=camera%20calibration
 
     Ted Lutkus
     6/26/20
@@ -42,6 +52,7 @@ private:
 
 public:
     PerceptionPipeline();
+    // Setup for the output pointcloud publisher
     void set_pointcloud_publisher(ros::Publisher pointcloud_publisher);
   
     // Callback function for the image transport ROS node

@@ -1,10 +1,14 @@
 /* 
-    This script can be run to calibrate perception algorithms
-    for 2D segmentation in Green Pick. The user will run the script,
-    be presented a gui with a stream from our camera, and be able to adjust
-    sliders for algorithms supported:
-    - cluster feature map box detection
-    - hough circle detector
+    This node can be run to calibrate perception algorithms for 2D segmentation and pickpoint generation. 
+    
+    To use:
+    1. Start the algorithm_calibrator node using rosrun and type to specify whether the 'box' detector or 'circle' detector is being used.
+    2. A frame from the camera will be presented:
+        - Select the region of interest for the algorithms to be calibrated on by clicking and dragging on the frame.
+        - A blue box should appear while dragging to show the selected region of interest.
+    3. After confirming your selection by pressing the space key or enter key, the chosen algorithm will be performed continuously on the
+       selected region of interest.
+    4. Use the GUI sliders to adjust parameters and see what works best for the target objects
 
     Ted Lutkus
     6/30/20
@@ -14,7 +18,6 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui.hpp>
-//#include <opencv4/opencv2/highgui.hpp>
 #include "ros/ros.h"
 #include "cluster_featurematch_box_detector.hpp"
 #include "hough_circle_detector.hpp"
@@ -33,6 +36,10 @@ private:
     cv_bridge::CvImagePtr cv_ptr;
     int box_or_circle_algo;
 
+    // Variables for selecting calibration region of interest
+    bool first_time = true;
+    cv::Rect2d selected_rectangle;
+
 public:
     AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo);
 
@@ -50,33 +57,32 @@ public:
     static void on_trackbar_circle_radius(int, void* ptr);
     static void on_trackbar_radius_tolerance(int, void* ptr);
 
+    // Callback for each camera frame
     void image_converter_callback(const sensor_msgs::ImageConstPtr& msg);
 
     ~AlgoCalibrator();
 };
 
 int main(int argc, char **argv) {
+    // Initialize the calibrator node
     ros::init(argc, argv, "algorithm_calibrator");
     ros::NodeHandle n_converter;
 
     // Loop until user inputs valid input of box or circle, then start the algorithm calibrator for the specified algo
-    bool valid_input = false;
     std::string chosen_algo;
     int box_or_circle_algo = 0;
-    while (!valid_input) {
-        std::cout << "Please enter the desired algo calibration ('box' or 'circle'): ";
-        std::cin >> chosen_algo;
-        if (chosen_algo.compare("box") == 0) {
-            box_or_circle_algo = BOX;
-            valid_input = true;
-        } else if (chosen_algo.compare("circle") == 0) {
-            box_or_circle_algo = CIRCLE;
-            valid_input = true;
-        } else {
-            std::cout << "\nInvalid input!\n";
-        }
+    std::cout << "Please enter the desired algo calibration ('box' or 'circle'): ";
+    std::cin >> chosen_algo;
+    if (chosen_algo.compare("box") == 0) {
+        box_or_circle_algo = BOX;
+    } else if (chosen_algo.compare("circle") == 0) {
+        box_or_circle_algo = CIRCLE;
+    } else {
+        std::cout << "\nInvalid input!\n";
+        return 0;
     }
 
+    // Create the algorithm calibrator object using the desired algorithm
     AlgoCalibrator AlgoCalibrator(n_converter, box_or_circle_algo);
 
     ros::spin();

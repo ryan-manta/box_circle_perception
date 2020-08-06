@@ -1,5 +1,15 @@
-/* Circle Detection */
-//https://docs.opencv.org/master/d4/d70/tutorial_hough_circle.html
+/* 
+    This function performs detection of multiple circular objects in an input image using parameters passed in. This code closely follows a tutorial from
+    OpenCV: https://docs.opencv.org/master/d4/d70/tutorial_hough_circle.html
+    This algorithm works quite well out of the box with some tuning. For tuning I would recommend bringing down the canny edge detector threshold
+    and hough accumulator threshold until a lot of circles are covering the objects. Then increase the minimum circle distance and circle radius to get one circle
+    on each object.
+
+    This function can be called multiple times to perform a batch of detections. New pickpoints will be appended onto the vector passed in without overwriting.
+
+    Ted Lutkus
+    7/6/2020
+*/
 
 #include "hough_circle_detector.hpp"
 
@@ -51,5 +61,4 @@ bool detect_circles(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sou
     } else {
         return false;
     }
-
 }

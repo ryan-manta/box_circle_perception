@@ -1,8 +1,17 @@
 /* 
-    This script can be run to calibrate a new rectangular item
-    for 2D segmentation in Green Pick. The user will run the script,
-    be presented a gui with an image from our sensor, select the box,
-    and have any necessary feature data stored 
+    This node can be run to calibrate a new rectangular item for 2D segmentation. 
+    
+    To use:
+    1. *FROM ROOT OF REPO* Run the box item calibrator node with rosrun
+        - A live camera feed should pop up
+    2. When ready to calibrate, click anywhere on the live camera feed
+        - A single frame captured at the current time should be presented
+    3. Click and drag from one corner of the item to the opposite corner of the item
+        - A blue crosshair should follow the mouse while dragging to show the selection
+    4. Release the mouse button, the selected region should pop up.
+        - This image is saved to ./data/cropped_image.jpg (Currently no option for naming the saved item)
+        - Currently this will overwrite the current "cropped_image.jpg" file in that directory.
+        - Saving different items and calling different items by name is a feature that needs to be added.
 
     Ted Lutkus
     6/26/20
@@ -18,7 +27,6 @@ static const std::string OPENCV_WINDOW = "Image window";
 
 class Calibrator {
 private:
-    //ros::NodeHandle nh_;
     image_transport::ImageTransport image_transporter;
     image_transport::Subscriber image_subscriber;
     bool do_calibration;
@@ -26,10 +34,13 @@ private:
 public:
     Calibrator(ros::NodeHandle n_converter);
 
+    // Callback for first mouse press to start calibration
     static void onMouse(int event, int x, int y, int, void* ptr);
 
+    // Function called once mouse is pressed to start calibration
     void calibrate_box_item(cv::Mat& source_image);
 
+    // Callback to receive new images from camera feed
     void image_converter_callback(const sensor_msgs::ImageConstPtr& msg);
 
     ~Calibrator();

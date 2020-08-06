@@ -1,3 +1,23 @@
+/*  
+    This perception pipeline is what should be used after calibrating items and algorithms.
+    The pipeline is intialized and then provides a service that can be called to generate a pickpoint [x, y, z].
+    The service takes an input vector (that will be used to store the pickpoints generated) as well as the name of the item to be picked.
+    Currently, the item names and their associated types are hardcoded in, it should be straight forward to have this read from a file if needed.
+    The reference image for box detection currently defaults to the "cropped_image.jpg" file in the data/ folder.
+    
+    * NOTE *
+    While the perception algorithms are implemented, further integration is needed to get the pipeline ready for robotic picking:
+    For development, a realsense camera was used and pickpoints were generated in the realsense camera frame.
+    In order to use multiple sensors and/or use the generated pickpoint for robotic manipulation, the sensor frames will need to be
+    calibrated with respect to the robot frame so that the robot can properly move to the position output of the perception pipeline.
+    
+    For a tutorial on camera calibration, see:
+    https://industrial-training-master.readthedocs.io/en/melodic/_source/demo3/Setting-up-a-3D-sensor.html?highlight=camera%20calibration
+
+    Ted Lutkus
+    6/26/20
+*/
+
 #include "perception_pipeline.hpp"
 
 static const std::string OPENCV_WINDOW = "Image window";
@@ -5,11 +25,12 @@ static const std::string OPENCV_WINDOW = "Image window";
 PerceptionPipeline::PerceptionPipeline()
       : image_transporter(nh_) {
 
-    // Subscribe to input video feed and publish output video feed
+    // Subscribe to input video feed from Realsense and publish output video feed
     image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
     &PerceptionPipeline::perception_callback, this);
     image_publisher = image_transporter.advertise("/perception_pipeline/output_images", 1);
 
+    // Start without request to fetch pointcloud
     get_pointcloud = false;
 }
 
@@ -31,28 +52,27 @@ void PerceptionPipeline::perception_callback(const sensor_msgs::ImageConstPtr& m
         ROS_ERROR("No image data found!");
         return;
     }
-
-    // Output modified video stream
-    // image_publisher.publish(cv_ptr->toImageMsg());
 }
 
 void PerceptionPipeline::pointcloud_callback(const PointCloud::ConstPtr& msg) {
+    // Check if a new pointcloud is neeeded
     if (get_pointcloud) {
         this->current_pointcloud = *msg;
         get_pointcloud = false;
     }
 }
 
+// Workaround for issue with pointcloud data getting freed
 template <class T>
-static void DoNotFree(T*)
-{
+static void DoNotFree(T*) {
 }
 
 bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Request &req,
                         green_pick::GeneratePickpoint::Response &res) {
+
     /* CURRENTLY HARDCODED IN */
-    // See if item has a circle top or box top
-    std::vector<std::string> items = {"penne_pasta", "elbows_pasta", "tin_coffee"};
+    // Items available for picking and their associated algorithm types
+    std::vector<std::string> items = {"penne_pasta", "elbows_pasta", "coffee_tin"};
     std::vector<int> box_or_circle = {BOX, BOX, CIRCLE};
 
     // Check our item set for the item we want to pick
@@ -60,13 +80,15 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
         if (req.item_name.compare(items[i]) == 0) {
             std::vector<cv::Point2f> pickpoints_xy;
             this->get_pointcloud = true;
+            
+            // Initialize variables used to run a batch of detections for the given item and varify that pickpoints are being generated
             int pickpoint_sample_size = 10;
             int minimum_required_pickpoints = 8;
             int number_of_success = 0;
 
-            // If we hit item, perform its associated detection method
+            // Perform item's associated detection method
             if (box_or_circle[i] == BOX) {
-                // Collect multiple batches of pickpoints using cluster feature map box detection
+                // Collect multiple batches of pickpoints using cluster feature map box detection (use algorithm calibrator to find ideal parameters)
                 int hessian_threshold = 100;
                 int K = 20;
                 int parallel_angle_threshold = 8;
@@ -80,7 +102,7 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
                     }
                 }
             } else if (box_or_circle[i] == CIRCLE) {
-                // Collect multiple batches of pickpoints using hough circle detection
+                // Collect multiple batches of pickpoints using hough circle detection (use algorithm calibrator to find ideal parameters)
                 for (int j = 0; j < pickpoint_sample_size; j++) {
                     double min_circle_dist = 20;
                     double canny_edge_detector_thresh = 200;
@@ -100,11 +122,11 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
 
             // Check that we have minimum number of pickpoints required to select from
             if (number_of_success <= minimum_required_pickpoints) {
-                //return false;
+                return false;
             }
 
-            // Assume that all pickpoints returned are good pickpoints to choose from (ie. detect_boxes should only return good pickpoints)
-            // Go with pickpoint closest to bottom left of inventory (minimum magnitude)
+            // Assume that all pickpoints returned are good pickpoints to choose from (Could use another added layer of selection/filtering for security)
+            // Go with pickpoint closest to bottom left of inventory (minimum magnitude to pickpoint)
             float min_magnitude = std::sqrt(std::pow(pickpoints_xy[0].x, 2) + std::pow(pickpoints_xy[0].y, 2));
             int min_point_index = 0;
             for (int j = 0; j < pickpoints_xy.size(); j++) {
@@ -126,6 +148,6 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
         }
     }
     
-    image_publisher.publish(cv_ptr->toImageMsg());
-    return true;
+    ROS_ERROR("Could not find item in list of pickable items.");
+    return false;
 }

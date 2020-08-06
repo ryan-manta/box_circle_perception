@@ -1,30 +1,30 @@
-/* This will take two images, one a reference image of an object, and the second
+/*  
+    This will take two images, one a reference image of an object, and the second
     an image of a scene that contains that object, and use feature matching to locate the
-    object in the scene. 
+    object in the scene.
 
     Ted Lutkus
     6/25/20
 
     Adapted from tutorial:
     https://docs.opencv.org/3.4/d7/dff/tutorial_feature_homography.html
+
+    The primary change from the tutorial is the introduction of K-Means clustering to perform detection on multiple items.
+    The tutorial's algorithm is designed to find one instance of the reference object. By clustering and running the algorithm on each cluster,
+    we can find multiple instances of objects separately from each other and then combine the results at the end through some filtering.
+
+    This function can be called multiple times to perform a batch of detections. New pickpoints will be appended onto the vector passed in without overwriting.
 */
+
 #include "cluster_featurematch_box_detector.hpp"
 
 Eigen::IOFormat CleanFmt(3, 0, " ", "\n", "[", "]");
 
 bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& source_img_ptr, int hessian_threshold, int K, 
                     float parallel_angle_threshold, float min_parallelogram_edge_length, float right_angle_threshold, bool draw_feature_matches) {
-    // Start timer to track perception time
-    //auto start = chrono::high_resolution_clock::now();
-
-    // Clear pickpoints_xy_output to ensure no external data is returned
-    //pickpoints_xy_output.clear();
 
     // Load reference and sampled scene images
     cv::Mat object_reference_image = cv::imread("data/cropped_image.jpg");
-
-    //cv::Mat object_reference_image = cv::imread("detection_algos/test_images/cropped_image.jpg");
-    //source_img_ptr = cv::imread("detection_algos/test_images/top_cereal.jpg");
 
     // Check that reference image has data
     if (object_reference_image.empty()){
@@ -37,14 +37,7 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
     }
 
     //Detect the keypoints using SURF Detector, compute the descriptors
-
-    //cv::Ptr<cv::ORB> orb_detector = cv::ORB::create();
-    //cv::Ptr<cv::KAZE> kaze_detector = cv::KAZE::create(hessian_threshold / 100000.0);
-    //cv::Ptr<cv::BRISK> brisk_detector = cv::BRISK::create(hessian_threshold);
-    //Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
     static cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
-    //std::cout << "======= CHECK2 =======\n";
-
     std::vector<cv::KeyPoint> object_reference_keypoints, sampled_scene_keypoints;
     cv::Mat object_reference_descriptors, sampled_scene_descriptors;
     cv::InputOutputArray detector_mask = cv::noArray();
@@ -53,16 +46,6 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
     if (object_reference_keypoints.empty() || object_reference_descriptors.empty() || sampled_scene_keypoints.empty() || sampled_scene_descriptors.empty()) {
         return false;
     }
-
-    //detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
-    //detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
-    //cv::Ptr<cv::ORB> detector_2
-    //cv::Ptr<cv::xfeatures2d::SURF> detector = cv::xfeatures2d::SURF::create(hessian_threshold);
-    //std::vector<cv::KeyPoint> object_reference_keypoints, sampled_scene_keypoints;
-    //cv::Mat object_reference_descriptors, sampled_scene_descriptors;
-    //cv::InputOutputArray detector_mask = cv::noArray();
-    //detector->detectAndCompute(object_reference_image, detector_mask, object_reference_keypoints, object_reference_descriptors);
-    //detector->detectAndCompute(source_img_ptr, detector_mask, sampled_scene_keypoints, sampled_scene_descriptors);
 
     // Convert keypoint vector to 2D double vector
     int N_rows = sampled_scene_keypoints.size();
@@ -76,8 +59,7 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
     }
 
     // K-Means clustering on the scene keypoints
-    // Note that if you increase K in multiples of number of items in scene, you'll eventually reach 1 cluster per item (for top_cereal its 12)
-    //int K = 12;
+    // K is the number of clusters to identify in the image
     int point_dim = 2;
     int n_iters = 200;
     int seed = 42;
@@ -108,10 +90,8 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
 
         // Extract the cluster subset of keypoints and descriptors from the reference and scene
-        //cv::resize(scene_descriptors_cluster, scene_descriptors_cluster, )
         scene_keypoints_cluster.resize(num_points_in_cluster);
         scene_descriptors_cluster.resize(num_points_in_cluster);
-        //cv::Mat scene_descriptors_cluster = cv::Mat::zeros(num_points_in_cluster, sampled_scene_descriptors.cols, sampled_scene_descriptors.type());
         int ind = 0;
         for (int i = 0; i < number_of_points_total; i++) {
             if (cluster_labels(i,0) == cluster) {
@@ -122,7 +102,6 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
         
         // Matching descriptor vectors with a FLANN based matcher
-        //cv::DescriptorMatcher::MatcherType descriptor_matcher_type = cv::DescriptorMatcher::BRUTEFORCE_HAMMING;
         cv::DescriptorMatcher::MatcherType descriptor_matcher_type = cv::DescriptorMatcher::FLANNBASED;
         cv::Ptr<cv::DescriptorMatcher> descriptor_matcher = cv::DescriptorMatcher::create(descriptor_matcher_type);
         std::vector<std::vector<cv::DMatch>> knn_matches;
@@ -150,7 +129,6 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
             cv::DrawMatchesFlags drawing_flag = cv::DrawMatchesFlags::DEFAULT;
             if (first_drawmatches) {
                 // For first cluster, create new image
-                //drawing_flag = cv::DrawMatchesFlags::DEFAULT;
                 first_drawmatches = false;
             } else {
                 // For subsequent clusters, write over existing image
@@ -186,6 +164,9 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
 
         // Get the object corners from the reference image
+        // Scene corner indexing with respect to box corners:
+        //      (0) - top left        (1) - top right
+        //      (3) - bot left        (2) - bot right
         std::vector<cv::Point2f> object_corners(4);
         object_corners[0] = cv::Point2f(0, 0);
         object_corners[1] = cv::Point2f((float)object_reference_image.cols, 0);
@@ -199,13 +180,8 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
 
         // Check if the detected box is a parallelogram by comparing the angles of opposite lines
-        // angle_threshold is the maximum angular tolerance allowed for each set of parallel lines
-        //(0) - top left        (1) - top right
-        //(3) - bot left        (2) - bot right
-        // Get angles of parallel lines
-        //float angle_threshold = 8; // [deg]
+        // Angle_threshold is the maximum angular tolerance allowed for each set of parallel lines
         float parallel_angle_threshold_rad = parallel_angle_threshold * M_PI / 180.0;
-        //float min_parallelogram_edge_length = 20;
         std::vector<float> angles(4);
         std::vector<int> edge_start_ind = {0, 3, 3, 2};
         std::vector<int> edge_end_ind = {1, 2, 0, 1};
@@ -215,7 +191,6 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
             float y_length = scene_corners[edge_end_ind[i]].y - scene_corners[edge_start_ind[i]].y;
             float x_length = scene_corners[edge_end_ind[i]].x - scene_corners[edge_start_ind[i]].x;
             angles[i] = std::atan2(y_length, x_length);
-            //ROS_INFO_STREAM("Angle [" << i << "] = " << angles[i] * 180.0 / M_PI << "\n");
             
             // Determine if edge is long enough for to be considered as a potential pick candidate
             float edge_magnitude = std::sqrt(std::pow(x_length,2) + std::pow(y_length,2));
@@ -233,8 +208,7 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
             continue;
         }
 
-        // Check that angles are within tolerance of being considered 90deg
-        //float right_angle_threshold = 10; // [deg]
+        // Check that angles are within set tolerance of 90 degrees
         float right_angle_threshold_rad = right_angle_threshold * M_PI / 180.0;
         float right_angle = 90 * M_PI / 180.0;
         float top_left_corner_angle = std::fabs(angles[0] - angles[2]);
@@ -285,11 +259,7 @@ bool detect_boxes(std::vector<cv::Point2f>& pickpoints_xy_output, cv::Mat& sourc
         }
     }
     
-
-    // Finish timing the detection process
-    //auto stop = chrono::high_resolution_clock::now();
-    //auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
-    //ROS_INFO_STREAM << "DETECTION TIME: " << duration.count() / 1000.0 << "[ms]");
+    // Edit the original image and return whether at least on pickpoint was returned
     source_img_ptr = matches_image;
     return at_least_one_pickpoint;
 }

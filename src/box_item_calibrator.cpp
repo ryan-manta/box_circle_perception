@@ -1,9 +1,27 @@
+/* 
+    This node can be run to calibrate a new rectangular item for 2D segmentation. 
+    
+    To use:
+    1. *FROM ROOT OF REPO* Run the box item calibrator node with rosrun
+        - A live camera feed should pop up
+    2. When ready to calibrate, click anywhere on the live camera feed
+        - A single frame captured at the current time should be presented
+    3. Click and drag from one corner of the item to the opposite corner of the item
+        - A blue crosshair should follow the mouse while dragging to show the selection
+    4. Release the mouse button, the selected region should pop up.
+        - This image is saved to ./data/cropped_image.jpg (Currently no option for naming the saved item)
+        - Currently this will overwrite the current "cropped_image.jpg" file in that directory.
+        - Saving different items and calling different items by name is a feature that needs to be added.
+
+    Ted Lutkus
+    6/26/20
+*/
+
 #include "box_item_calibrator.hpp"
 
 Calibrator::Calibrator(ros::NodeHandle n_converter) : image_transporter(n_converter) {
-    //image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
-    //                                               &Calibrator::image_converter_callback, this);
-    image_subscriber = image_transporter.subscribe("/pylon_camera_node/image_raw", 1,
+    // Subscribe to the raw image topic published by a Realsense camera
+    image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
                                                    &Calibrator::image_converter_callback, this);
 
     // Set calibration to false at start
@@ -11,15 +29,7 @@ Calibrator::Calibrator(ros::NodeHandle n_converter) : image_transporter(n_conver
 
     // OpenCV window
     cv::namedWindow(OPENCV_WINDOW, cv::WINDOW_AUTOSIZE);
-    //cv::resizeWindow(OPENCV_WINDOW, 1920, 1080);
     cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::onMouse, this);
-
-    //cv::namedWindow("Select ROI", cv::WINDOW_NORMAL);
-    //cv::resizeWindow(OPENCV_WINDOW, 1920, 1080);
-
-    //cv::namedWindow("Selected Item", cv::WINDOW_NORMAL);
-    //cv::resizeWindow(OPENCV_WINDOW, 1920, 1080);
-
 }
 
 void Calibrator::onMouse(int event, int x, int y, int, void *ptr) {
@@ -35,10 +45,7 @@ void Calibrator::onMouse(int event, int x, int y, int, void *ptr) {
 
 void Calibrator::calibrate_box_item(cv::Mat &source_image) {
     // Select region of interest (ROI)
-    //cv::namedWindow("Select ROI", cv::WINDOW_NORMAL);
     cv::Rect2d selected_rectangle = cv::selectROI("Select ROI", source_image);
-    //cv::resizeWindow("Select ROI", 1920, 1080);
-
 
     // Crop image down to selected ROI
     cv::Mat cropped_image = source_image(selected_rectangle);
@@ -47,9 +54,7 @@ void Calibrator::calibrate_box_item(cv::Mat &source_image) {
     cv::imwrite("./data/cropped_image.jpg", cropped_image);
 
     // Display cropped image
-    //cv::namedWindow("Selected Item", cv::WINDOW_NORMAL);
     cv::imshow("Selected Item", cropped_image);
-    //cv::resizeWindow("Select Item", 1920, 1080);
     cv::waitKey(0);
 }
 

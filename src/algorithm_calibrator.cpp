@@ -1,3 +1,19 @@
+/* 
+    This node can be run to calibrate perception algorithms for 2D segmentation and pickpoint generation. 
+    
+    To use:
+    1. Start the algorithm_calibrator node using rosrun and type to specify whether the 'box' detector or 'circle' detector is being used.
+    2. A frame from the camera will be presented:
+        - Select the region of interest for the algorithms to be calibrated on by clicking and dragging on the frame.
+        - A blue box should appear while dragging to show the selected region of interest.
+    3. After confirming your selection by pressing the space key or enter key, the chosen algorithm will be performed continuously on the
+       selected region of interest.
+    4. Use the GUI sliders to adjust parameters and see what works best for the target objects
+
+    Ted Lutkus
+    6/30/20
+*/
+
 #include "algorithm_calibrator.hpp"
 
 /* BOX DETECTOR PARAMETERS */
@@ -53,14 +69,17 @@ int circle_radius_perc_tolerance_max = 50;
 int circle_radius_perc_tolerance = 10;
 
 AlgoCalibrator::AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo) : image_transporter(n_converter) {
-    //image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
-    //                                               &AlgoCalibrator::image_converter_callback, this);
+    // Subscribe to the raw image topic published by a Basler camera
     image_subscriber = image_transporter.subscribe("/pylon_camera_node/image_raw", 1,
                                                    &AlgoCalibrator::image_converter_callback, this);
 
     // OpenCV window
     cv::namedWindow(OPENCV_WINDOW, cv::WINDOW_NORMAL);
     cv::resizeWindow(OPENCV_WINDOW, 1920, 1080);
+
+    // Initialize region of interest variables for calibration
+    bool first_time = true;
+    cv::Rect2d selected_rectangle;
     
     this->box_or_circle_algo = box_or_circle_algo;
     if (box_or_circle_algo == BOX) {
@@ -153,8 +172,7 @@ void AlgoCalibrator::on_trackbar_radius_tolerance(int, void *ptr) {
     ROS_INFO("circle_radius_perc_tolerance: %u", circle_radius_perc_tolerance);
 }
 
-bool first_time = true;
-cv::Rect2d selected_rectangle;
+
 void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &msg) {
     // Try to copy ROS image to OpenCV image
     try {
@@ -170,26 +188,25 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &
         return;
     }
 
-    if (first_time) {
-        selected_rectangle = cv::selectROI(OPENCV_WINDOW, this->cv_ptr->image);
-        first_time = false;
+    // If this is the first frame, pause and let the user select the region of interest
+    // that contains the objects to be detected
+    if (this->first_time) {
+        this->selected_rectangle = cv::selectROI(OPENCV_WINDOW, this->cv_ptr->image);
+        this->first_time = false;
     }
 
     // Crop image down to selected ROI
-    cv::Mat cropped_img = this->cv_ptr->image(selected_rectangle);
-    //this->cv_ptr->image = this->cv_ptr->image(selected_rectangle);
+    cv::Mat cropped_img = this->cv_ptr->image(this->selected_rectangle);
 
+    // Perform user specified detection algorithm
     std::vector<cv::Point2f> pickpoints_xy;
     if (this->box_or_circle_algo == BOX) {
-        int number_of_batches = 8;
-        for (int i = 0; i < number_of_batches; i++) {
-            // Detect boxes in image using current calibrator values
-            bool show_feature_matches = false;
-            try {
-                detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
-            } catch (cv::Exception e) {
-                ROS_INFO("Segmentation failed!");
-            }
+        // Detect boxes in image using current calibrator values
+        bool show_feature_matches = false;
+        try {
+            detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
+        } catch (cv::Exception e) {
+            ROS_INFO("Segmentation failed!");
         }
     } else if (this->box_or_circle_algo == CIRCLE) {
         // Detect circles in image using current calibrator values
@@ -201,22 +218,10 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &
         }
     }
 
-    // Show modified image
-    //cv::resize
+    // Show detected objects
     this->cv_ptr->image(selected_rectangle) = cropped_img;
     cv::imshow(OPENCV_WINDOW, this->cv_ptr->image);
-    if (this->box_or_circle_algo == BOX) {
-        cv::waitKey(500);
-        std::cout << "Save?\n";
-        int save;
-        std::cin >> save;
-        if (save == 1) {
-            cv::imwrite("./data/result.jpg", this->cv_ptr->image);
-        }
-    } else if (this->box_or_circle_algo == CIRCLE) {
-        cv::waitKey(3);
-    }
-
+    cv::waitKey(100);
 }
 
 AlgoCalibrator::~AlgoCalibrator() {
