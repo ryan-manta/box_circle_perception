@@ -1,121 +1,229 @@
 /* 
-    This script can be run to calibrate perception algorithms
-    for 2D segmentation in Green Pick. The user will run the script,
-    be presented a gui with a stream from our camera, and be able to adjust
-    sliders for algorithms supported:
-    - hough circle detection
-    - surf feature map box detection
+    This node can be run to calibrate perception algorithms for 2D segmentation and pickpoint generation. 
+    
+    To use:
+    1. Start the algorithm_calibrator node using rosrun and type to specify whether the 'box' detector or 'circle' detector is being used.
+    2. A frame from the camera will be presented:
+        - Select the region of interest for the algorithms to be calibrated on by clicking and dragging on the frame.
+        - A blue box should appear while dragging to show the selected region of interest.
+    3. After confirming your selection by pressing the space key or enter key, the chosen algorithm will be performed continuously on the
+       selected region of interest.
+    4. Use the GUI sliders to adjust parameters and see what works best for the target objects
 
     Ted Lutkus
     6/30/20
 */
 
-#include <image_transport/image_transport.h>
-#include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
-#include <opencv2/highgui.hpp>
-#include "ros/ros.h"
-#include "detection_algos/cluster_featurematch_box_detector.cpp"
+#include "algorithm_calibrator.hpp"
 
-static const std::string OPENCV_WINDOW = "Image window";
-
-int hessian_slider = 100;
+/* BOX DETECTOR PARAMETERS */
+// Hessian value used for feature detection
+int hessian_slider = 50;
 int hessian_slider_max = 1000;
-int hessian = 100;
+int hessian = 50;
 
-int K_slider = 20;
-int K_max = 24;
-int K = 20;
+// Number of clusters to run segmentation on in image (need at least one for each object)
+int K_slider = 36;
+int K_max = 100;
+int K = 36;
 
-class AlgoCalibrator {
-private:
-    image_transport::ImageTransport image_transporter;
-    image_transport::Subscriber image_subscriber;
-    cv_bridge::CvImagePtr cv_ptr;
-    bool do_calibration;
+// Angle threshold for parallel sides of detected box
+int parallel_angle_threshold_slider = 5;
+int parallel_angle_threshold_max = 90;
+int parallel_angle_threshold = 5;
 
-public:
-    AlgoCalibrator(ros::NodeHandle n_converter) : image_transporter(n_converter) {
-        image_subscriber = image_transporter.subscribe("/camera/color/image_raw", 1,
-            &AlgoCalibrator::image_converter_callback, this);
+// Minimum edge length for detected box
+int min_parallelogram_edge_length_slider = 10;
+int min_parallelogram_edge_length_max = 200;
+int min_parallelogram_edge_length = 10;
 
-        // Set calibration to false at start
-        do_calibration = false;
+// Right angle threshold for detected box (applicable for top-down view of inventory)
+int right_angle_threshold_slider = 5;
+int right_angle_threshold_max = 90;
+int right_angle_threshold = 5;
 
-        // OpenCV window
-        cv::namedWindow(OPENCV_WINDOW, cv::WINDOW_AUTOSIZE);
+/* CIRCLE DETECTOR PARAMETERS */
+// Minimum distance between each circle
+int min_circle_dist_slider = 20;
+int min_circle_dist_max = 500;
+int min_circle_dist = 20;
 
-        // SURF Hessian threshold trackbar
+// Threshold for canny edge detector
+int canny_edge_detector_thresh_slider = 50;
+int canny_edge_detector_thresh_max = 500;
+int canny_edge_detector_thresh = 50;
+
+// Hough accumulator threshold
+int hough_accumulator_thresh_slider = 50;
+int hough_accumulator_thresh_max = 500;
+int hough_accumulator_thresh = 50;
+
+// Circle radius for detection
+int circle_radius_slider = 20;
+int circle_radius_max = 500;
+int circle_radius = 20;
+
+// Circle percentage error tolerance
+int circle_radius_perc_tolerance_slider = 10;
+int circle_radius_perc_tolerance_max = 50;
+int circle_radius_perc_tolerance = 10;
+
+AlgoCalibrator::AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo) : image_transporter(n_converter) {
+    // Subscribe to the raw image topic published by a Basler camera
+    image_subscriber = image_transporter.subscribe("/pylon_camera_node/image_raw", 1,
+                                                   &AlgoCalibrator::image_converter_callback, this);
+
+    // OpenCV window
+    cv::namedWindow(OPENCV_WINDOW, cv::WINDOW_NORMAL);
+    cv::resizeWindow(OPENCV_WINDOW, 1920, 1080);
+
+    // Initialize region of interest variables for calibration
+    bool first_time = true;
+    cv::Rect2d selected_rectangle;
+    
+    this->box_or_circle_algo = box_or_circle_algo;
+    if (box_or_circle_algo == BOX) {
+        /* BOX DETECTOR PARAMETER SLIDERS INIT*/
         char TrackbarName_hessian[50];
         std::sprintf(TrackbarName_hessian, "Hessian x %d", hessian_slider_max);
-        cv::createTrackbar( TrackbarName_hessian, OPENCV_WINDOW, &hessian_slider, hessian_slider_max, &AlgoCalibrator::on_trackbar_hessian, this);
+        cv::createTrackbar(TrackbarName_hessian, OPENCV_WINDOW, &hessian_slider, hessian_slider_max, &AlgoCalibrator::on_trackbar_hessian, this);
 
-        // SURF Hessian threshold trackbar
         char TrackbarName_kmeans[50];
         std::sprintf(TrackbarName_kmeans, "K-Means x %d", K_max);
-        cv::createTrackbar( TrackbarName_kmeans, OPENCV_WINDOW, &K_slider, K_max, &AlgoCalibrator::on_trackbar_kmeans, this);
+        cv::createTrackbar(TrackbarName_kmeans, OPENCV_WINDOW, &K_slider, K_max, &AlgoCalibrator::on_trackbar_kmeans, this);
+
+        char TrackbarName_parallel_angle[50];
+        std::sprintf(TrackbarName_parallel_angle, "Parallel angle threshold x %d", parallel_angle_threshold_max);
+        cv::createTrackbar(TrackbarName_parallel_angle, OPENCV_WINDOW, &parallel_angle_threshold_slider, parallel_angle_threshold_max, &AlgoCalibrator::on_trackbar_parallel_angle_threshold, this);
+
+        char TrackbarName_min_parallelogram_edge_length[50];
+        std::sprintf(TrackbarName_min_parallelogram_edge_length, "Minimum parallelogram edge length x %d", min_parallelogram_edge_length_max);
+        cv::createTrackbar(TrackbarName_min_parallelogram_edge_length, OPENCV_WINDOW, &min_parallelogram_edge_length_slider, min_parallelogram_edge_length_max, &AlgoCalibrator::on_trackbar_min_parallelogram_edge_length, this);
+
+        char TrackbarName_right_angle_threshold[50];
+        std::sprintf(TrackbarName_right_angle_threshold, "Right angle threshold x %d", right_angle_threshold_max);
+        cv::createTrackbar(TrackbarName_right_angle_threshold, OPENCV_WINDOW, &right_angle_threshold_slider, right_angle_threshold_max, &AlgoCalibrator::on_trackbar_right_angle_threshold, this);
+
+    } else if (box_or_circle_algo == CIRCLE) {
+        /* CIRCLE DETECTOR PARAMETER SLIDERS INIT */
+        char TrackbarName_circle_dist[50];
+        std::sprintf(TrackbarName_circle_dist, "Minimum circle distance x %d", min_circle_dist_max);
+        cv::createTrackbar(TrackbarName_circle_dist, OPENCV_WINDOW, &min_circle_dist_slider, min_circle_dist_max, &AlgoCalibrator::on_trackbar_circle_dist, this);
+    
+        char TrackbarName_canny_thresh[50];
+        std::sprintf(TrackbarName_canny_thresh, "Canny edge detector threshold x %d", canny_edge_detector_thresh_max);
+        cv::createTrackbar(TrackbarName_canny_thresh, OPENCV_WINDOW, &canny_edge_detector_thresh_slider, canny_edge_detector_thresh_max, &AlgoCalibrator::on_trackbar_canny_thresh, this);
+    
+        char TrackbarName_hough_thresh[50];
+        std::sprintf(TrackbarName_hough_thresh, "Hough circle detector threshold x %d", hough_accumulator_thresh_max);
+        cv::createTrackbar(TrackbarName_hough_thresh, OPENCV_WINDOW, &hough_accumulator_thresh_slider, hough_accumulator_thresh_max, &AlgoCalibrator::on_trackbar_hough_thresh, this);
+        
+        char TrackbarName_circle_radius[50];
+        std::sprintf(TrackbarName_circle_radius, "Detecting circle radius x %d", circle_radius_max);
+        cv::createTrackbar(TrackbarName_circle_radius, OPENCV_WINDOW, &circle_radius_slider, circle_radius_max, &AlgoCalibrator::on_trackbar_circle_radius, this);
+         
+        char TrackbarName_radius_tolerance[50];
+        std::sprintf(TrackbarName_radius_tolerance, "Circle radius percentage tolerance x %d", circle_radius_perc_tolerance_max);
+        cv::createTrackbar(TrackbarName_radius_tolerance, OPENCV_WINDOW, &circle_radius_perc_tolerance_slider, circle_radius_perc_tolerance_max, &AlgoCalibrator::on_trackbar_radius_tolerance, this);
+    }
+}
+
+/* BOX DETECTOR SLIDER CALLBACKS */
+void AlgoCalibrator::on_trackbar_hessian(int, void *ptr) {
+    hessian = hessian_slider;
+    ROS_INFO("hessian: %u", hessian);
+}
+void AlgoCalibrator::on_trackbar_kmeans(int, void *ptr) {
+    K = K_slider;
+    ROS_INFO("K: %u", K);
+}
+void AlgoCalibrator::on_trackbar_parallel_angle_threshold(int, void *ptr) {
+    parallel_angle_threshold = parallel_angle_threshold_slider;
+    ROS_INFO("parallel_angle_threshold: %u", parallel_angle_threshold);
+}
+void AlgoCalibrator::on_trackbar_min_parallelogram_edge_length(int, void *ptr) {
+    min_parallelogram_edge_length = min_parallelogram_edge_length_slider;
+    ROS_INFO("min_parallelogram_edge_length: %u", min_parallelogram_edge_length);
+}
+void AlgoCalibrator::on_trackbar_right_angle_threshold(int, void *ptr) {
+    right_angle_threshold = right_angle_threshold_slider;
+    ROS_INFO("right_angle_threshold: %u", right_angle_threshold);
+}
+
+/* CIRCLE DETECTOR SLIDER CALLBACKS */
+void AlgoCalibrator::on_trackbar_circle_dist(int, void *ptr) {
+    min_circle_dist = min_circle_dist_slider;
+    ROS_INFO("min_circle_dist: %u", min_circle_dist);
+}
+void AlgoCalibrator::on_trackbar_canny_thresh(int, void *ptr) {
+    canny_edge_detector_thresh = canny_edge_detector_thresh_slider;
+    ROS_INFO("canny_edge_detector_thresh: %u", canny_edge_detector_thresh);
+}
+void AlgoCalibrator::on_trackbar_hough_thresh(int, void *ptr) {
+    hough_accumulator_thresh = hough_accumulator_thresh_slider;
+    ROS_INFO("hough_accumulator_thresh: %u", hough_accumulator_thresh);
+}
+void AlgoCalibrator::on_trackbar_circle_radius(int, void *ptr) {
+    circle_radius = circle_radius_slider;
+    ROS_INFO("circle_radius: %u", circle_radius);
+}
+void AlgoCalibrator::on_trackbar_radius_tolerance(int, void *ptr) {
+    circle_radius_perc_tolerance = circle_radius_perc_tolerance_slider;
+    ROS_INFO("circle_radius_perc_tolerance: %u", circle_radius_perc_tolerance);
+}
+
+
+void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr &msg) {
+    // Try to copy ROS image to OpenCV image
+    try {
+        this->cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+    } catch (cv_bridge::Exception &e) {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
     }
 
-    static void on_trackbar_hessian(int, void* ptr)
-        {
-            // Adjust hessian value
-            AlgoCalibrator* this_c = (AlgoCalibrator*) ptr;
-            hessian = hessian_slider;
-            ROS_INFO("hessian: %u", hessian);
-        }
+    // Check if image has data
+    if (!this->cv_ptr->image.data) {
+        ROS_ERROR("No image data found!");
+        return;
+    }
 
-    static void on_trackbar_kmeans(int, void* ptr)
-        {
-            // Adjust hessian value
-            AlgoCalibrator* this_c = (AlgoCalibrator*) ptr;
-            K = K_slider;
-            ROS_INFO("K: %u", K);
-        }
+    // If this is the first frame, pause and let the user select the region of interest
+    // that contains the objects to be detected
+    if (this->first_time) {
+        this->selected_rectangle = cv::selectROI(OPENCV_WINDOW, this->cv_ptr->image);
+        this->first_time = false;
+    }
 
-    void image_converter_callback(const sensor_msgs::ImageConstPtr& msg) {
-        // Try to copy ROS image to OpenCV image
+    // Crop image down to selected ROI
+    cv::Mat cropped_img = this->cv_ptr->image(this->selected_rectangle);
+
+    // Perform user specified detection algorithm
+    std::vector<cv::Point2f> pickpoints_xy;
+    if (this->box_or_circle_algo == BOX) {
+        // Detect boxes in image using current calibrator values
+        bool show_feature_matches = false;
         try {
-            this->cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-        }
-        catch (cv_bridge::Exception &e)
-        {
-            ROS_ERROR("cv_bridge exception: %s", e.what());
-            return;
-        }
-
-        // Check if image has data
-        if (!this->cv_ptr->image.data)
-        {
-            ROS_ERROR("No image data found!");
-            return;
-        }
-
-        // Detect box using new hessian threshold
-        //cv::Mat matches_image;
-        bool show_feature_matches = true;
-        std::vector<cv::Point2f> pickpoints_xy;
-        try {
-            detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian, K, show_feature_matches);
+            detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
         } catch (cv::Exception e) {
             ROS_INFO("Segmentation failed!");
         }
-
-        // Show modified image
-        cv::imshow(OPENCV_WINDOW, this->cv_ptr->image);
-        cv::waitKey(500);
-        //cv::waitKey(1000);
+    } else if (this->box_or_circle_algo == CIRCLE) {
+        // Detect circles in image using current calibrator values
+        try {
+            detect_circles(pickpoints_xy, cropped_img, (double) min_circle_dist, (double) canny_edge_detector_thresh, 
+                                (double) hough_accumulator_thresh, circle_radius, circle_radius_perc_tolerance);
+        } catch (cv::Exception e) {
+            ROS_INFO("Segmentation failed!");
+        }
     }
 
-    ~AlgoCalibrator() {
-        cv::destroyWindow(OPENCV_WINDOW);
-    }
-};
+    // Show detected objects
+    this->cv_ptr->image(selected_rectangle) = cropped_img;
+    cv::imshow(OPENCV_WINDOW, this->cv_ptr->image);
+    cv::waitKey(100);
+}
 
-int main(int argc, char **argv) {
-    ros::init(argc, argv, "algorithm_calibrator");
-    ros::NodeHandle n_converter;
-    AlgoCalibrator AlgoCalibrator(n_converter);
-
-    ros::spin();
-    return 0;
+AlgoCalibrator::~AlgoCalibrator() {
+    cv::destroyWindow(OPENCV_WINDOW);
 }

@@ -1,20 +1,20 @@
 # green_pick_ros
 
 ## Dependencies:
-1. OpenCV 2.4.9 (Needs installation)
+1. OpenCV
     - https://docs.opencv.org/master/d7/d9f/tutorial_linux_install.html
 
-2. PCL (Needs installation)
+2. PCL
     - https://pointclouds.org/
     - sudo apt install libpcl-dev
 
-2. Eigen 3 (Needs installation)
+2. Eigen 3
     - https://gitlab.com/libeigen/eigen.git
 
 3. KMeansRex (Included and trimmed down from original)
     - https://github.com/tedlutkus/KMeansRex.git
 
-4. Realsense-ros (Needs installation)
+4. Realsense-ros
     - https://github.com/IntelRealSense/realsense-ros
 
 ## Currently Implemented:

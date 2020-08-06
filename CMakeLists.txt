@@ -211,29 +211,41 @@ include_directories(
 # catkin_add_nosetests(test)
 
 ############ OPENCV ############
-find_package( OpenCV REQUIRED )
+find_package( OpenCV 4.4.0 REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
+message(${OpenCV_INCLUDE_DIRS})
+#include_directories()
 
 ############ PCL ############
 find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 
+set(HEADER_FILES src/detection_algos/cluster_featurematch_box_detector.hpp src/detection_algos/get_depth_at_pickpoint.hpp src/detection_algos/hough_circle_detector.hpp)
+set(SOURCES src/detection_algos/cluster_featurematch_box_detector.cpp src/detection_algos/get_depth_at_pickpoint.cpp src/detection_algos/hough_circle_detector.cpp)
+add_library(detection_lib ${SOURCES} ${HEADER_FILES})
+target_include_directories(detection_lib PRIVATE src/detection_algos)
 
 ############ PERCEPTION PIPELINE ############
-add_executable(perception_pipeline src/perception_pipeline.cpp)
+add_executable(perception_pipeline src/perception_pipeline.cpp ${HEADER_FILES})
 target_link_libraries(perception_pipeline ${catkin_LIBRARIES})
-# add_dependencies(perception_pipeline green_pick_cpp)
-target_link_libraries( perception_pipeline ${OpenCV_LIBS} )
+target_link_libraries( perception_pipeline ${OpenCV_LIBS})
+target_include_directories(perception_pipeline PRIVATE src/detection_algos)
+target_link_libraries(perception_pipeline detection_lib)
+target_link_libraries(perception_pipeline opencv_xfeatures2d)
+
 
 ############ ITEM CALIBRATION ############
 add_executable(box_item_calibrator src/box_item_calibrator.cpp)
 target_link_libraries(box_item_calibrator ${catkin_LIBRARIES})
-# add_dependencies(box_item_calibrator green_pick_cpp)
 target_link_libraries( box_item_calibrator ${OpenCV_LIBS} )
 
+
 ############ ALGO CALIBRATION ############
-add_executable(algorithm_calibrator src/algorithm_calibrator.cpp)
+add_executable(algorithm_calibrator src/algorithm_calibrator.cpp ${HEADER_FILES})
 target_link_libraries(algorithm_calibrator ${catkin_LIBRARIES})
-# add_dependencies(algorithm_calibrator green_pick_cpp)
-target_link_libraries( algorithm_calibrator ${OpenCV_LIBS} )
+target_link_libraries( algorithm_calibrator ${OpenCV_LIBS})
+target_include_directories(algorithm_calibrator PRIVATE src/detection_algos)
+target_link_libraries(algorithm_calibrator detection_lib)
+target_link_libraries(algorithm_calibrator opencv_xfeatures2d)
+
 
