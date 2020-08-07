@@ -33,6 +33,6 @@
 2. Cluster-based SURF feature matching for box detection
 
 ## Intended Workflow
-1. *Box Detection Only* Obtain reference image of the desired box-like object to be picked using "Box Item Calibrator" ROS node
+1. **Box Detection Only:** Obtain reference image of the desired box-like object to be picked using "Box Item Calibrator" ROS node
 2. Calibrate algorithms for object set to be picked from using "Algorithm Calibrator" ROS node
 3. Use perception pipeline with calibrated algorithm parameters to find pickpoints [x, y, z] of items by passing name of item to pipeline
