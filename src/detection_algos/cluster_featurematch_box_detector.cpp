@@ -23,7 +23,7 @@ Eigen::IOFormat CleanFmt(3, 0, " ", "\n", "[", "]");
 bool detect_boxes(std::vector <cv::Point2f>& pickpoints_xy_output, cv::Mat& source_img_ptr, int hessian_threshold, int K,
                   float parallel_angle_threshold, float min_parallelogram_edge_length, float right_angle_threshold, bool draw_feature_matches, string ref_image) {
     // Get reference image filename
-    string cv_ref_image = "data/" + ref_image;
+    string cv_ref_image = "./data/" + ref_image;
 
     // Load reference and sampled scene images
     cv::Mat object_reference_image = cv::imread(cv_ref_image);
@@ -66,7 +66,7 @@ bool detect_boxes(std::vector <cv::Point2f>& pickpoints_xy_output, cv::Mat& sour
     int				n_iters			   = 200;
     int				seed = 42;
     int				number_of_points_total = N_rows;
-    char *			plusplus		   = (char *) "plusplus";//std::string::c_str("plusplus");
+    char *			plusplus		   = (char *) "plusplus";                    //std::string::c_str("plusplus");
     Eigen::ArrayXXd clusters		   = Eigen::ArrayXXd::Zero(K, point_dim);
     Eigen::ArrayXd	cluster_labels	   = Eigen::ArrayXd::Zero(number_of_points_total);
 

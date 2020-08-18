@@ -70,12 +70,35 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
                                             green_pick::GeneratePickpoint::Response&res) {
     /* CURRENTLY HARDCODED IN */
     // Items available for picking and their associated algorithm types
-    std::vector <std::string> items			= { "penne_pasta", "elbows_pasta", "coffee_tin" };
-    std::vector <int>		  box_or_circle = { BOX, BOX, CIRCLE };
+
+    /*std::vector <std::string> items			= { "penne_pasta", "elbows_pasta", "coffee_tin" };
+     * std::vector <int>		  box_or_circle = { BOX, BOX, CIRCLE };*/
+
+    struct grocery_item {
+        string item;
+        int	   type;
+        string image;
+    };
+
+    ifstream items_list("./data/items_list.txt");
+    int		 lines = 0;
+    string	 line;
+
+    while (getline(items_list, line)) {
+        lines++;
+    }
+    //cout << lines << endl;
+    items_list.clear();
+    items_list.seekg(0, ios::beg);
+
+    Grocery_Items_List(grocery_item items[lines], items_list, lines);
+    if (items_list.is_open()) {
+        items_list.close();
+    }
 
     // Check our item set for the item we want to pick
     for (int i = 0; i < items.size(); i++) {
-        if (req.item_name.compare(items[i]) == 0) {
+        if (req.item_name.compare(items[i].item) == 0) {
             std::vector <cv::Point2f> pickpoints_xy;
             this->get_pointcloud = true;
 
@@ -85,30 +108,32 @@ bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Reque
             int number_of_success			= 0;
 
             // Perform item's associated detection method
-            if (box_or_circle[i] == BOX) {
+            if (items[i].type == BOX) {
                 // Collect multiple batches of pickpoints using cluster feature map box detection (use algorithm calibrator to find ideal parameters)
-                int	 hessian_threshold = 100;
-                int	 K = 20;
-                int	 parallel_angle_threshold	   = 8;
-                int	 min_parallelogram_edge_length = 10;
-                int	 right_angle_threshold		   = 10;
-                bool draw_feature_matches		   = false;
+
+                /*int	 hessian_threshold = 100;
+                 * int	 K = 20;
+                 * int	 parallel_angle_threshold	   = 8;
+                 * int	 min_parallelogram_edge_length = 10;
+                 * int	 right_angle_threshold		   = 10;*/
+                bool draw_feature_matches = false;
                 for (int j = 0; j < pickpoint_sample_size; j++) {
-                    bool pick_success = detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian_threshold, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, draw_feature_matches, "cropped_image.jpg");
+                    bool pick_success = detect_boxes(pickpoints_xy, this->cv_ptr->image, items[i].hessian_threshold, items[i].K, items[i].parallel_angle_threshold,
+                                                     items[i].min_parallelogram_edge_length, items[i].right_angle_threshold, items[i].draw_feature_matches, items[i].image);
                     if (pick_success) {
                         number_of_success++;
                     }
                 }
-            } else if (box_or_circle[i] == CIRCLE) {
+            } else if (items[i].type == CIRCLE) {
                 // Collect multiple batches of pickpoints using hough circle detection (use algorithm calibrator to find ideal parameters)
                 for (int j = 0; j < pickpoint_sample_size; j++) {
-                    double min_circle_dist			  = 20;
-                    double canny_edge_detector_thresh = 200;
-                    double hough_accumulator_thresh	  = 25;
-                    int	   circle_radius = 25;
-                    int	   circle_radius_perc_tolerance = 30;
-                    bool   pick_success = detect_circles(pickpoints_xy, this->cv_ptr->image, min_circle_dist, canny_edge_detector_thresh,
-                                                         hough_accumulator_thresh, circle_radius, circle_radius_perc_tolerance);
+                    /*double min_circle_dist			  = 20;
+                     * double canny_edge_detector_thresh = 200;
+                     * double hough_accumulator_thresh	  = 25;
+                     * int	   circle_radius = 25;
+                     * int	   circle_radius_perc_tolerance = 30;*/
+                    bool pick_success = detect_circles(pickpoints_xy, this->cv_ptr->image, items[i].min_circle_dist, items[i].canny_edge_detector_thresh,
+                                                       items[i].hough_accumulator_thresh, items[i].circle_radius, items[i].circle_radius_perc_tolerance);
                     if (pick_success) {
                         number_of_success++;
                     }

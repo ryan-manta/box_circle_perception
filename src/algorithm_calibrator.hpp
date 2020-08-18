@@ -1,18 +1,18 @@
-/* 
-    This node can be run to calibrate perception algorithms for 2D segmentation and pickpoint generation. 
-    
-    To use:
-    1. Start the algorithm_calibrator node using rosrun and type to specify whether the 'box' detector or 'circle' detector is being used.
-    2. A frame from the camera will be presented:
-        - Select the region of interest for the algorithms to be calibrated on by clicking and dragging on the frame.
-        - A blue box should appear while dragging to show the selected region of interest.
-    3. After confirming your selection by pressing the space key or enter key, the chosen algorithm will be performed continuously on the
-       selected region of interest.
-    4. Use the GUI sliders to adjust parameters and see what works best for the target objects
-
-    Ted Lutkus
-    6/30/20
-*/
+/*
+ *  This node can be run to calibrate perception algorithms for 2D segmentation and pickpoint generation.
+ *
+ *  To use:
+ *  1. Start the algorithm_calibrator node using rosrun and type to specify whether the 'box' detector or 'circle' detector is being used.
+ *  2. A frame from the camera will be presented:
+ *      - Select the region of interest for the algorithms to be calibrated on by clicking and dragging on the frame.
+ *      - A blue box should appear while dragging to show the selected region of interest.
+ *  3. After confirming your selection by pressing the space key or enter key, the chosen algorithm will be performed continuously on the
+ *     selected region of interest.
+ *  4. Use the GUI sliders to adjust parameters and see what works best for the target objects
+ *
+ *  Ted Lutkus
+ *  6/30/20
+ */
 
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
@@ -23,11 +23,12 @@
 #include "hough_circle_detector.hpp"
 #include <string>
 #include <iostream>
+#include <fstream>
 
 static const std::string OPENCV_WINDOW = "Image window";
 
-#define BOX 1
-#define CIRCLE 2
+#define BOX		  1
+#define CIRCLE	  2
 
 class AlgoCalibrator {
 private:
@@ -41,21 +42,21 @@ private:
     cv::Rect2d selected_rectangle;
 
 public:
-    AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo);
+    AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo, std::string grocery_item);
 
     /* BOX DETECTION PARAMETERS */
-    static void on_trackbar_hessian(int, void* ptr);
-    static void on_trackbar_kmeans(int, void* ptr);
-    static void on_trackbar_parallel_angle_threshold(int, void* ptr);
-    static void on_trackbar_min_parallelogram_edge_length(int, void* ptr);
-    static void on_trackbar_right_angle_threshold(int, void* ptr);
+    static void on_trackbar_hessian(int, void *ptr);
+    static void on_trackbar_kmeans(int, void *ptr);
+    static void on_trackbar_parallel_angle_threshold(int, void *ptr);
+    static void on_trackbar_min_parallelogram_edge_length(int, void *ptr);
+    static void on_trackbar_right_angle_threshold(int, void *ptr);
 
     /* CIRCLE DETECTOR PARAMETERS */
-    static void on_trackbar_circle_dist(int, void* ptr);
-    static void on_trackbar_canny_thresh(int, void* ptr);
-    static void on_trackbar_hough_thresh(int, void* ptr);
-    static void on_trackbar_circle_radius(int, void* ptr);
-    static void on_trackbar_radius_tolerance(int, void* ptr);
+    static void on_trackbar_circle_dist(int, void *ptr);
+    static void on_trackbar_canny_thresh(int, void *ptr);
+    static void on_trackbar_hough_thresh(int, void *ptr);
+    static void on_trackbar_circle_radius(int, void *ptr);
+    static void on_trackbar_radius_tolerance(int, void *ptr);
 
     // Callback for each camera frame
     void image_converter_callback(const sensor_msgs::ImageConstPtr& msg);
@@ -70,21 +71,51 @@ int main(int argc, char **argv) {
 
     // Loop until user inputs valid input of box or circle, then start the algorithm calibrator for the specified algo
     std::string chosen_algo;
-    int box_or_circle_algo = 0;
+    std::string grocery_item;
+    int			box_or_circle_algo = 0;
     std::cout << "Please enter the desired algo calibration ('box' or 'circle'): ";
     std::cin >> chosen_algo;
+    std::cout << endl << "Please enter the grocery item being calibrated (i.e. penne_pasta): ";
+    std::cin >> grocery_item;
+    std::cout << endl;
+    ofstream items_list;
+    items_list.open("data/items_list.txt", ofstream::out | ofstream::app);
+    items_list << grocery_item << "," << chosen_algo << ",";
     if (chosen_algo.compare("box") == 0) {
         box_or_circle_algo = BOX;
+        items_list << grocery_item << ".jpg,";
     } else if (chosen_algo.compare("circle") == 0) {
         box_or_circle_algo = CIRCLE;
+        items_list << "NULL,";
     } else {
         std::cout << "\nInvalid input!\n";
-        return 0;
+        return (0);
     }
 
     // Create the algorithm calibrator object using the desired algorithm
-    AlgoCalibrator AlgoCalibrator(n_converter, box_or_circle_algo);
+    AlgoCalibrator AlgoCalibrator(n_converter, box_or_circle_algo, grocery_item);
+
+    /* BOX DETECTION PARAMETERS INTO FILE */
+    items_list << on_trackbar_hessian << ",";
+    items_list << on_trackbar_kmeans << ",";
+    items_list << on_trackbar_parallel_angle_threshold << ",";
+    items_list << on_trackbar_min_parallelogram_edge_length << ",";
+    items_list << on_trackbar_right_angle_threshold << ",";
+
+    /* CIRCLE DETECTOR PARAMETERS INTO FILE*/
+    items_list << on_trackbar_circle_dist << ",";
+    items_list << on_trackbar_canny_thresh << ",";
+    items_list << on_trackbar_hough_thresh << ",";
+    items_list << on_trackbar_circle_radius << ",";
+    items_list << on_trackbar_radius_tolerance << endl;
+    items_list.close()
 
     ros::spin();
-    return 0;
+
+    if (box_or_circle_algo == BOX) {
+        std::string temp_cmd = "box_item_calibrator(" + grocery_item + ")";
+        const char *cmd		 = temp_cmd.c_str();
+        std::system(cmd);
+    }
+    return (0);
 }

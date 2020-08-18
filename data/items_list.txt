@@ -1,0 +1,4 @@
+penne_pasta,0,penne_pasta.jpg,50,36,5,10,5,20,50,50,20,10
+elbows_pasta,0,elbows_pasta.jpg,50,36,5,10,5,20,50,50,20,10
+coffee_tin,1,NULL,50,36,5,10,5,20,50,50,20,10
+cheerios,1,NULL,50,36,5,10,5,20,50,50,20,10
