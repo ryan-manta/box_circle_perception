@@ -25,7 +25,8 @@ Calibrator::Calibrator(ros::NodeHandle n_converter, std::string grocery_item) : 
                                                    &Calibrator::image_converter_callback, this);
 
     // Set calibration to false at start
-    do_calibration = false;
+    do_calibration	   = false;
+    this->grocery_item = grocery_item;
 
     // OpenCV window
     cv::namedWindow(OPENCV_WINDOW, cv::WINDOW_AUTOSIZE);
@@ -43,7 +44,7 @@ void Calibrator::onMouse(int event, int x, int y, int, void *ptr) {
     return;
 }
 
-void Calibrator::calibrate_box_item(cv::Mat&source_image, std::string grocery_item) {
+void Calibrator::calibrate_box_item(cv::Mat&source_image) {
     // Select region of interest (ROI)
     cv::Rect2d selected_rectangle = cv::selectROI("Select ROI", source_image);
 
@@ -51,7 +52,7 @@ void Calibrator::calibrate_box_item(cv::Mat&source_image, std::string grocery_it
     cv::Mat cropped_image = source_image(selected_rectangle);
 
     // Save cropped image to ./data/
-    std::string image_name = "./data/" + grocery_item + ".jpg";
+    std::string image_name = "./data/" + this->grocery_item + ".jpg";
 
     cv::imwrite(image_name, cropped_image);
 

@@ -31,7 +31,8 @@
 #include <vector>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
-#include "Grocery_Items_List.hpp"
+#include <string>
+#include <sqlite3.h>
 
 #define BOX		  0
 #define CIRCLE	  1
@@ -65,6 +66,12 @@ public:
     // Generate pickpoint service callback
     bool generate_pickpoint(green_pick::GeneratePickpoint::Request&req,
                             green_pick::GeneratePickpoint::Response&res);
+
+    // Database selection string assignment
+    static int callbackSelectString(void *data, int argc, char **argv, char **azColName);
+
+    // Database selecting int assignment
+    static int callbackSelectInt(void *data, int argc, char **argv, char **azColName);
 };
 
 int main(int argc, char **argv) {

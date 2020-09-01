@@ -23,9 +23,9 @@
 #include "hough_circle_detector.hpp"
 #include <string>
 #include <iostream>
-#include <fstream>
+#include <sqlite3.h>
 
-static const std::string OPENCV_WINDOW = "Image window";
+static const std::string OPENCV_WINDOW = "Algorithm Calibrator";
 
 #define BOX		  1
 #define CIRCLE	  2
@@ -35,14 +35,16 @@ private:
     image_transport::ImageTransport image_transporter;
     image_transport::Subscriber image_subscriber;
     cv_bridge::CvImagePtr cv_ptr;
-    int box_or_circle_algo;
+    int box_or_circle_algo;   // algorithm to calibrate
+    std::string grocery_item; //grocery item being calibrated
 
     // Variables for selecting calibration region of interest
     bool first_time = true;
     cv::Rect2d selected_rectangle;
 
 public:
-    AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo, std::string grocery_item);
+    AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo,
+                   std::string grocery_item);
 
     /* BOX DETECTION PARAMETERS */
     static void on_trackbar_hessian(int, void *ptr);
@@ -61,6 +63,9 @@ public:
     // Callback for each camera frame
     void image_converter_callback(const sensor_msgs::ImageConstPtr& msg);
 
+    // Callback to print Grocery Item DB Entry Data
+    static void callbackSQLPrint(void *data, int argc, char **argv, char **azColName);
+
     ~AlgoCalibrator();
 };
 
@@ -69,24 +74,21 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "algorithm_calibrator");
     ros::NodeHandle n_converter;
 
-    // Loop until user inputs valid input of box or circle, then start the algorithm calibrator for the specified algo
+    /* Loop until user inputs valid input of box or circle, then start the
+     * algorithm calibrator for the specified algo */
     std::string chosen_algo;
     std::string grocery_item;
-    int			box_or_circle_algo = 0;
-    std::cout << "Please enter the desired algo calibration ('box' or 'circle'): ";
-    std::cin >> chosen_algo;
-    std::cout << endl << "Please enter the grocery item being calibrated (i.e. penne_pasta): ";
-    std::cin >> grocery_item;
-    std::cout << endl;
-    ofstream items_list;
-    items_list.open("data/items_list.txt", ofstream::out | ofstream::app);
-    items_list << grocery_item << "," << chosen_algo << ",";
+    std::cout << "Please enter the grocery item being calibrated (i.e. 'penne_pasta'): ";
+    std::getline(std::cin, grocery_item);
+    int box_or_circle_algo = 0;
+    std::cout << endl << "Please enter the desired algo calibration ('box' or 'circle'): ";
+    std::getline(std::cin, chosen_algo);
+
     if (chosen_algo.compare("box") == 0) {
         box_or_circle_algo = BOX;
-        items_list << grocery_item << ".jpg,";
+        //Run box item calibrator??
     } else if (chosen_algo.compare("circle") == 0) {
         box_or_circle_algo = CIRCLE;
-        items_list << "NULL,";
     } else {
         std::cout << "\nInvalid input!\n";
         return (0);
@@ -95,27 +97,7 @@ int main(int argc, char **argv) {
     // Create the algorithm calibrator object using the desired algorithm
     AlgoCalibrator AlgoCalibrator(n_converter, box_or_circle_algo, grocery_item);
 
-    /* BOX DETECTION PARAMETERS INTO FILE */
-    items_list << on_trackbar_hessian << ",";
-    items_list << on_trackbar_kmeans << ",";
-    items_list << on_trackbar_parallel_angle_threshold << ",";
-    items_list << on_trackbar_min_parallelogram_edge_length << ",";
-    items_list << on_trackbar_right_angle_threshold << ",";
-
-    /* CIRCLE DETECTOR PARAMETERS INTO FILE*/
-    items_list << on_trackbar_circle_dist << ",";
-    items_list << on_trackbar_canny_thresh << ",";
-    items_list << on_trackbar_hough_thresh << ",";
-    items_list << on_trackbar_circle_radius << ",";
-    items_list << on_trackbar_radius_tolerance << endl;
-    items_list.close()
-
     ros::spin();
 
-    if (box_or_circle_algo == BOX) {
-        std::string temp_cmd = "box_item_calibrator(" + grocery_item + ")";
-        const char *cmd		 = temp_cmd.c_str();
-        std::system(cmd);
-    }
     return (0);
 }

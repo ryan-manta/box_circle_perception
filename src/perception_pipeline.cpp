@@ -21,6 +21,21 @@
 #include "perception_pipeline.hpp"
 
 static const std::string OPENCV_WINDOW = "Image window";
+std::string grocery_item;
+int			box_or_circle_algo;
+std::string photo;
+int			hessian;
+int			K;
+int			parallel_angle_threshold;
+int			min_parallelogram_edge_length;
+int			right_angle_threshold;
+int			min_circle_dist;
+int			canny_edge_detector_thresh;
+int			hough_accumulator_thresh;
+int			circle_radius;
+int			circle_radius_perc_tolerance;
+std::string selected_string;
+int			selected_int;
 
 PerceptionPipeline::PerceptionPipeline()
     : image_transporter(nh_) {
@@ -66,109 +81,133 @@ template <class T>
 static void DoNotFree(T *) {
 }
 
+int PerceptionPipeline::callbackSelectString(void *data, int argc, char **argv, char **azColName) {
+    selected_string = argv[0] ? argv[0] : "NULL";
+    return (0);
+}
+
+int PerceptionPipeline::callbackSelectInt(void *data, int argc, char **argv, char **azColName) {
+    try{
+        selected_int = stoi(argv[0]);
+    }
+    catch (std::logic_error) {
+        selected_int = -1;
+    }
+
+    return (0);
+}
+
 bool PerceptionPipeline::generate_pickpoint(green_pick::GeneratePickpoint::Request&req,
                                             green_pick::GeneratePickpoint::Response&res) {
-    /* CURRENTLY HARDCODED IN */
-    // Items available for picking and their associated algorithm types
+    sqlite3 *	  DB;
+    char *		  messaggeError;
+    sqlite3_stmt *stmt = 0;
+    std::string	  sql;
 
-    /*std::vector <std::string> items			= { "penne_pasta", "elbows_pasta", "coffee_tin" };
-     * std::vector <int>		  box_or_circle = { BOX, BOX, CIRCLE };*/
-
-    struct grocery_item {
-        string item;
-        int	   type;
-        string image;
-    };
-
-    ifstream items_list("./data/items_list.txt");
-    int		 lines = 0;
-    string	 line;
-
-    while (getline(items_list, line)) {
-        lines++;
-    }
-    //cout << lines << endl;
-    items_list.clear();
-    items_list.seekg(0, ios::beg);
-
-    Grocery_Items_List(grocery_item items[lines], items_list, lines);
-    if (items_list.is_open()) {
-        items_list.close();
+    /* OPEN GROCERY ITEM DB */
+    if (sqlite3_open("../data/Groceries_DB.db", &DB)) {
+        std::cerr << "Error opening DB " << sqlite3_errmsg(DB) << std::endl;
     }
 
+    grocery_item = req.item_name;
+    sql			 = "SELECT SHAPE FROM GROCERIES WHERE ID='" + grocery_item + "';";
+    sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+    box_or_circle_algo = selected_int;
     // Check our item set for the item we want to pick
-    for (int i = 0; i < items.size(); i++) {
-        if (req.item_name.compare(items[i].item) == 0) {
-            std::vector <cv::Point2f> pickpoints_xy;
-            this->get_pointcloud = true;
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        std::vector <cv::Point2f> pickpoints_xy;
+        this->get_pointcloud = true;
 
-            // Initialize variables used to run a batch of detections for the given item and varify that pickpoints are being generated
-            int pickpoint_sample_size		= 10;
-            int minimum_required_pickpoints = 8;
-            int number_of_success			= 0;
+        // Initialize variables used to run a batch of detections for the given item and varify that pickpoints are being generated
+        int pickpoint_sample_size		= 10;
+        int minimum_required_pickpoints = 8;
+        int number_of_success			= 0;
 
-            // Perform item's associated detection method
-            if (items[i].type == BOX) {
-                // Collect multiple batches of pickpoints using cluster feature map box detection (use algorithm calibrator to find ideal parameters)
+        // Perform item's associated detection method
+        if (box_or_circle_algo == BOX) {
+            // Get item information from DB
+            sql = "SELECT PHOTO FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectString, NULL, NULL);
+            photo = selected_string;
+            sql	  = "SELECT HESSIAN FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            hessian = selected_int;
+            sql		= "SELECT K FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            K	= selected_int;
+            sql = "SELECT PARALLEL_ANGLE FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            parallel_angle_threshold = selected_int;
+            sql = "SELECT RIGHT_ANGLE FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            right_angle_threshold = selected_int;
+            // Collect multiple batches of pickpoints using cluster feature map box detection (use algorithm calibrator to find ideal parameters)
 
-                /*int	 hessian_threshold = 100;
-                 * int	 K = 20;
-                 * int	 parallel_angle_threshold	   = 8;
-                 * int	 min_parallelogram_edge_length = 10;
-                 * int	 right_angle_threshold		   = 10;*/
-                bool draw_feature_matches = false;
-                for (int j = 0; j < pickpoint_sample_size; j++) {
-                    bool pick_success = detect_boxes(pickpoints_xy, this->cv_ptr->image, items[i].hessian_threshold, items[i].K, items[i].parallel_angle_threshold,
-                                                     items[i].min_parallelogram_edge_length, items[i].right_angle_threshold, items[i].draw_feature_matches, items[i].image);
-                    if (pick_success) {
-                        number_of_success++;
-                    }
-                }
-            } else if (items[i].type == CIRCLE) {
-                // Collect multiple batches of pickpoints using hough circle detection (use algorithm calibrator to find ideal parameters)
-                for (int j = 0; j < pickpoint_sample_size; j++) {
-                    /*double min_circle_dist			  = 20;
-                     * double canny_edge_detector_thresh = 200;
-                     * double hough_accumulator_thresh	  = 25;
-                     * int	   circle_radius = 25;
-                     * int	   circle_radius_perc_tolerance = 30;*/
-                    bool pick_success = detect_circles(pickpoints_xy, this->cv_ptr->image, items[i].min_circle_dist, items[i].canny_edge_detector_thresh,
-                                                       items[i].hough_accumulator_thresh, items[i].circle_radius, items[i].circle_radius_perc_tolerance);
-                    if (pick_success) {
-                        number_of_success++;
-                    }
-                }
-            } else {
-                ROS_ERROR("Item is not properly labeled.");
-                return (false);
-            }
-
-            // Check that we have minimum number of pickpoints required to select from
-            if (number_of_success <= minimum_required_pickpoints) {
-                return (false);
-            }
-
-            // Assume that all pickpoints returned are good pickpoints to choose from (Could use another added layer of selection/filtering for security)
-            // Go with pickpoint closest to bottom left of inventory (minimum magnitude to pickpoint)
-            float min_magnitude	  = std::sqrt(std::pow(pickpoints_xy[0].x, 2) + std::pow(pickpoints_xy[0].y, 2));
-            int	  min_point_index = 0;
-            for (int j = 0; j < pickpoints_xy.size(); j++) {
-                float point_magnitude = std::sqrt(std::pow(pickpoints_xy[j].x, 2) + std::pow(pickpoints_xy[j].y, 2));
-                if (point_magnitude < min_magnitude) {
-                    min_magnitude	= min_magnitude;
-                    min_point_index = j;
+            bool draw_feature_matches = false;
+            for (int j = 0; j < pickpoint_sample_size; j++) {
+                bool pick_success = detect_boxes(pickpoints_xy, this->cv_ptr->image, hessian, K, parallel_angle_threshold,
+                                                 min_parallelogram_edge_length, right_angle_threshold, draw_feature_matches, photo);
+                if (pick_success) {
+                    number_of_success++;
                 }
             }
-
-            // Get the z_coordinate for the point picked out
-            PointCloud::ConstPtr pointcloud_ptr(&this->current_pointcloud, &DoNotFree <PointCloud> );
-            float z_coordinate = get_depth_at_pickpoint(pickpoints_xy[min_point_index], pointcloud_ptr);
-            res.pick_coordinates[0] = pickpoints_xy[min_point_index].x;
-            res.pick_coordinates[1] = pickpoints_xy[min_point_index].y;
-            res.pick_coordinates[2] = z_coordinate;
-            image_publisher.publish(cv_ptr->toImageMsg());
-            return (true);
+        } else if (box_or_circle_algo == CIRCLE) {
+            // Get item information from DB
+            sql = "SELECT MIN_CIRCLE_DIST FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            min_circle_dist = selected_int;
+            sql				= "SELECT CANNY_EDGE FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            canny_edge_detector_thresh = selected_int;
+            sql = "SELECT HOUGH_ACCUM FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            hough_accumulator_thresh = selected_int;
+            sql = "SELECT CIRCLE_RADIUS FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            circle_radius = selected_int;
+            sql			  = "SELECT CIRCLE_RADIUS_PERC FROM GROCERIES WHERE ID='" + grocery_item + "';";
+            sqlite3_exec(DB, sql.c_str(), callbackSelectInt, NULL, NULL);
+            circle_radius_perc = selected_int;
+            // Collect multiple batches of pickpoints using hough circle detection (use algorithm calibrator to find ideal parameters)
+            for (int j = 0; j < pickpoint_sample_size; j++) {
+                bool pick_success = detect_circles(pickpoints_xy, this->cv_ptr->image, min_circle_dist, canny_edge_detector_thresh,
+                                                   hough_accumulator_thresh, circle_radius, circle_radius_perc_tolerance);
+                if (pick_success) {
+                    number_of_success++;
+                }
+            }
+        } else {
+            ROS_ERROR("Item is not properly labeled.");
+            return (false);
         }
+
+        sqlite3_close(DB); // Close Groceries DB
+
+        // Check that we have minimum number of pickpoints required to select from
+        if (number_of_success <= minimum_required_pickpoints) {
+            return (false);
+        }
+
+        // Assume that all pickpoints returned are good pickpoints to choose from (Could use another added layer of selection/filtering for security)
+        // Go with pickpoint closest to bottom left of inventory (minimum magnitude to pickpoint)
+        float min_magnitude	  = std::sqrt(std::pow(pickpoints_xy[0].x, 2) + std::pow(pickpoints_xy[0].y, 2));
+        int	  min_point_index = 0;
+        for (int j = 0; j < pickpoints_xy.size(); j++) {
+            float point_magnitude = std::sqrt(std::pow(pickpoints_xy[j].x, 2) + std::pow(pickpoints_xy[j].y, 2));
+            if (point_magnitude < min_magnitude) {
+                min_magnitude	= min_magnitude;
+                min_point_index = j;
+            }
+        }
+
+        // Get the z_coordinate for the point picked out
+        PointCloud::ConstPtr pointcloud_ptr(&this->current_pointcloud, &DoNotFree <PointCloud> );
+        float z_coordinate = get_depth_at_pickpoint(pickpoints_xy[min_point_index], pointcloud_ptr);
+        res.pick_coordinates[0] = pickpoints_xy[min_point_index].x;
+        res.pick_coordinates[1] = pickpoints_xy[min_point_index].y;
+        res.pick_coordinates[2] = z_coordinate;
+        image_publisher.publish(cv_ptr->toImageMsg());
+        return (true);
     }
 
     ROS_ERROR("Could not find item in list of pickable items.");

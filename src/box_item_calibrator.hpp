@@ -22,14 +22,18 @@
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui.hpp>
 #include "ros/ros.h"
+#include <string>
+#include <iostream>
+#include <sqlite3.h>
 
-static const std::string OPENCV_WINDOW = "Image window";
+static const std::string OPENCV_WINDOW = "Box Item Feature Matching Selection";
 
 class Calibrator {
 private:
     image_transport::ImageTransport image_transporter;
     image_transport::Subscriber image_subscriber;
     bool do_calibration;
+    std::string grocery_item;
 
 public:
     Calibrator(ros::NodeHandle n_converter, std::string grocery_item);
@@ -38,7 +42,7 @@ public:
     static void onMouse(int event, int x, int y, int, void *ptr);
 
     // Function called once mouse is pressed to start calibration
-    void calibrate_box_item(cv::Mat & source_image, grocery_item);
+    void calibrate_box_item(cv::Mat& source_image);
 
     // Callback to receive new images from camera feed
     void image_converter_callback(const sensor_msgs::ImageConstPtr& msg);
@@ -46,14 +50,13 @@ public:
     ~Calibrator();
 };
 
-int main(std::string grocery_item, int argc, char **argv) {
+int main(int argc, char **argv) {
     ros::init(argc, argv, "calibrator_image_converter");
     ros::NodeHandle n_converter;
 
-    /*std::string		grocery_item;
-     * std::cout << "Please enter the grocery item being calibrated (i.e. penne_pasta): ";
-     * std::cin >> grocery_item;
-     * std::cout << endl;*/
+    std::string grocery_item;
+    std::cout << "Please enter the grocery item being calibrated (i.e. penne_pasta): ";
+    std::getline(std::cin, grocery_item);
     Calibrator calibrator(n_converter, grocery_item);
 
     ros::spin();

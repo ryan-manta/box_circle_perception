@@ -68,7 +68,9 @@ int circle_radius_perc_tolerance_slider = 10;
 int circle_radius_perc_tolerance_max	= 50;
 int circle_radius_perc_tolerance		= 10;
 
-AlgoCalibrator::AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo, std : string grocery_item) : image_transporter(n_converter) {
+std::string grocery_ref_photo;
+
+AlgoCalibrator::AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_algo, std::string grocery_item) : image_transporter(n_converter) {
     // Subscribe to the raw image topic published by a Basler camera
     image_subscriber = image_transporter.subscribe("/pylon_camera_node/image_raw", 1,
                                                    &AlgoCalibrator::image_converter_callback, this);
@@ -82,6 +84,8 @@ AlgoCalibrator::AlgoCalibrator(ros::NodeHandle n_converter, int box_or_circle_al
     cv::Rect2d selected_rectangle;
 
     this->box_or_circle_algo = box_or_circle_algo;
+    this->grocery_item		 = grocery_item;
+    grocery_ref_photo		 = grocery_item + ".jpg";
     if (box_or_circle_algo == BOX) {
         /* BOX DETECTOR PARAMETER SLIDERS INIT*/
         char TrackbarName_hessian[50];
@@ -210,7 +214,8 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr&m
         // Detect boxes in image using current calibrator values
         bool show_feature_matches = false;
         try {
-            detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold, min_parallelogram_edge_length, right_angle_threshold, show_feature_matches);
+            detect_boxes(pickpoints_xy, cropped_img, hessian, K, parallel_angle_threshold,
+                         min_parallelogram_edge_length, right_angle_threshold, show_feature_matches, grocery_ref_photo);
         } catch (cv::Exception e) {
             ROS_INFO("Segmentation failed!");
         }
@@ -230,6 +235,97 @@ void AlgoCalibrator::image_converter_callback(const sensor_msgs::ImageConstPtr&m
     cv::waitKey(100);
 }
 
+// Print out Grocery Item DB Entry Details
+void AlgoCalibrator::callbackSQLPrint(void *data, int argc, char **argv, char **azColName) {
+    int i;
+
+    fprintf(stderr, "%s: ", (const char *) data);
+
+    for (i = 0; i < argc; i++) {
+        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+
+    printf("\n");
+}
+
 AlgoCalibrator::~AlgoCalibrator() {
+    sqlite3 *	  DB;
+    char *		  messaggeError;
+    sqlite3_stmt *stmt = 0;
+    std::string	  sql;
+
+    /* INSERT ALGORITHM DATA INTO GROCERIES DB */
+
+    /* OPEN GROCERY ITEM DB */
+    if (sqlite3_open("../data/Groceries_DB.db", &DB)) {
+        std::cerr << "Error opening DB " << sqlite3_errmsg(DB) << std::endl;
+    }
+    /* BOX DETECTION PARAMETERS INTO DB */
+    if (box_or_circle_algo == BOX) {
+        sql = "INSERT OR REPLACE INTO GROCERIES(ID, SHAPE, PHOTO, HESSIAN, K, \
+                    PARALLEL_ANGLE, PARALLEL_LENGTH, RIGHT_ANGLE) \
+                    VALUES(@grocery_item, @box_or_circle_algo, @photo, @hessian, \
+                    @K, @parallel_angle, @parallel_length, @right_angle);";
+        sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, 0);
+        sqlite3_bind_text(stmt, sqlite3_bind_parameter_index(stmt, "@grocery_item"),
+                          this->grocery_item.c_str(), grocery_item.length(), SQLITE_STATIC);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@box_or_circle_algo"),
+                         this->box_or_circle_algo);
+        sqlite3_bind_text(stmt, sqlite3_bind_parameter_index(stmt, "@photo"),
+                          grocery_ref_photo.c_str(), photo.length(), SQLITE_STATIC);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@hessian"),
+                         hessian);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@K"),
+                         K);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@parallel_angle"),
+                         parallel_angle_threshold);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@parallel_length"),
+                         min_parallelogram_edge_length);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@right_angle"),
+                         right_angle_threshold);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cerr << "Error Insert" << std::endl;
+            sqlite3_free(messaggeError);
+        }
+        sqlite3_reset(stmt);
+    }
+    /* CIRCLE DETECTOR PARAMETERS INTO DB*/
+    else if (box_ == CIRCLE) {
+        sql = "INSERT OR REPLACE INTO GROCERIES(ID, SHAPE, MIN_CIRCLE_DIST, \
+                    CANNY_EDGE, HOUGH_ACCUM, CIRCLE_RADIUS, CIRCLE_RADIUS_PERC) \
+                    VALUES(@grocery_item, @box_or_circle_algo, @min_circle_dist, \
+                    @canny_edge, @hough_accum, @circle_radius, @circle_radius_perc)";
+        sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, 0);
+        sqlite3_bind_text(stmt, sqlite3_bind_parameter_index(stmt, "@grocery_item"),
+                          this->grocery_item.c_str(), grocery_item.length(), SQLITE_STATIC);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@box_or_circle_algo"),
+                         this->box_or_circle_algo);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@min_circle_dist"),
+                         min_circle_dist);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@canny_edge"),
+                         canny_edge_detector_thresh);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@hough_accum"),
+                         hough_accumulator_thresh);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@circle_radius"),
+                         circle_radius);
+        sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, "@circle_radius_perc"),
+                         circle_radius_perc_tolerance);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cerr << "Error Insert" << std::endl;
+            sqlite3_free(messaggeError);
+        }
+        sqlite3_reset(stmt);
+    }
+
+    /* DISPLAY NEWLY CREATED GROCERY ITEM TO USER */
+    sql = "SELECT * FROM GROCERIES WHERE ID='" + this->grocery_item + "';";
+    cout << "GROCERY ITEM INSERTED" << endl;
+    sqlite3_exec(DB, sql.c_str(), callbackSQLPrint, NULL, NULL);
+
+    // Close DB
+    sqlite3_close(DB);
+
     cv::destroyWindow(OPENCV_WINDOW);
 }
