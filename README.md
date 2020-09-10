@@ -16,6 +16,9 @@
 
 4. Realsense-ros
     - https://github.com/IntelRealSense/realsense-ros
+    
+5. pylon_camera
+    - http://wiki.ros.org/pylon_camera
 
 ## Currently Implemented:
 ### Perception Pipeline
