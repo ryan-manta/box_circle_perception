@@ -210,6 +210,14 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
+############ SQLITE3 ############
+# find_package( SQLite3 REQUIRED )
+# find_library(SQLite3 NAMES sqlite3 PATHS ${NAME}/lib)
+include_directories( /usr/include )
+link_directories( /usr/lib )
+# target_link_libraries( ${OUT_TARGET} SQLite3 )
+# target_include_directories( ${OUT_TARGET} PRIVATE ${NAME}/include)
+
 ############ OPENCV ############
 find_package( OpenCV 4.4.0 REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
@@ -232,12 +240,14 @@ target_link_libraries( perception_pipeline ${OpenCV_LIBS})
 target_include_directories(perception_pipeline PRIVATE src/detection_algos)
 target_link_libraries(perception_pipeline detection_lib)
 target_link_libraries(perception_pipeline opencv_xfeatures2d)
+target_link_libraries(perception_pipeline sqlite3)
 
 
 ############ ITEM CALIBRATION ############
 add_executable(box_item_calibrator src/box_item_calibrator.cpp)
 target_link_libraries(box_item_calibrator ${catkin_LIBRARIES})
 target_link_libraries( box_item_calibrator ${OpenCV_LIBS} )
+target_link_libraries(box_item_calibrator sqlite3)
 
 
 ############ ALGO CALIBRATION ############
@@ -247,5 +257,4 @@ target_link_libraries( algorithm_calibrator ${OpenCV_LIBS})
 target_include_directories(algorithm_calibrator PRIVATE src/detection_algos)
 target_link_libraries(algorithm_calibrator detection_lib)
 target_link_libraries(algorithm_calibrator opencv_xfeatures2d)
-
-
+target_link_libraries(algorithm_calibrator sqlite3)
