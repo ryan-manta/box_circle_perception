@@ -1,14 +1,7 @@
 # Box Circle Detection
 
 ## Dependencies:
-1. OpenCV 4.4.0
-    - Run following command to remove Ubuntu default installed OpenCV 3.2.0
-     
-     ```
-     sudo apt-get autoremove opencv-doc opencv-data libopencv-dev libopencv3.2-java libopencv3.2-jni python-opencv libopencv-core3.2 libopencv-photo3.2 libopencv-contrib3.2 libopencv-imgproc3.2 libopencv-superres3.2 libopencv-stitching3.2 libopencv-ml3.2 libopencv-video3.2 libopencv-videostab3.2 libopencv-objdetect3.2 libopencv-calib3d3.2
-     sudo apt-get install libopenexr-dev  
-     ```
-     
+1. OpenCV 4.5.0
     - https://docs.opencv.org/master/d7/d9f/tutorial_linux_install.html
 
 2. PCL
